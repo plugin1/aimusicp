@@ -8,33 +8,33 @@ const ICONS = {
 };
 
 const EMOTIONS = [
-  { id: "joy", name: "喜悦", en: "Joy", plain: "生命狀態全然舒展，靈魂在當下體驗到純粹的圓滿。", color: "#e7bf43" },
-  { id: "excitement", name: "興奮", en: "Excitement", plain: "內在能量高度滿溢，迫不及待要投入即將發生的生命體驗。", color: "#e48743" },
-  { id: "amusement", name: "趣味", en: "Amusement", plain: "在緊繃的現實秩序中，突然發現了荒謬卻安全的裂縫。", color: "#e6b34f" },
-  { id: "satisfaction", name: "滿足", en: "Satisfaction", plain: "現狀與內在期待完美契合，渴望暫時止息的安詳。", color: "#8fbf72" },
-  { id: "triumph", name: "成就感", en: "Triumph", plain: "歷經挑戰與對抗後，自我力量得到最高證實的爆發性釋放。", color: "#d56c31" },
-  { id: "admiration", name: "欽佩", en: "Admiration", plain: "在他人身上看到了自身渴望長成的理想模樣。", color: "#77a7d9" },
-  { id: "adoration", name: "崇拜", en: "Adoration", plain: "將自我的渺小全然交付給一個崇高或完美的客體。", color: "#9f7fd7" },
+  { id: "joy", name: "喜悦", en: "Joy", plain: "生命狀態全然舒展，靈魂在當下體驗到純粹的圓滿。", color: "#df6a5f" },
+  { id: "excitement", name: "興奮", en: "Excitement", plain: "內在能量高度滿溢，迫不及待要投入即將發生的生命體驗。", color: "#e05a9d" },
+  { id: "amusement", name: "趣味", en: "Amusement", plain: "在緊繃的現實秩序中，突然發現了荒謬卻安全的裂縫。", color: "#eadf57" },
+  { id: "satisfaction", name: "滿足", en: "Satisfaction", plain: "現狀與內在期待完美契合，渴望暫時止息的安詳。", color: "#c9a982" },
+  { id: "triumph", name: "成就感", en: "Triumph", plain: "歷經挑戰與對抗後，自我力量得到最高證實的爆發性釋放。", color: "#d89a2f" },
+  { id: "admiration", name: "欽佩", en: "Admiration", plain: "在他人身上看到了自身渴望長成的理想模樣。", color: "#9aa85d" },
+  { id: "adoration", name: "崇拜", en: "Adoration", plain: "將自我的渺小全然交付給一個崇高或完美的客體。", color: "#9a7656" },
   { id: "aesthetic", name: "欣賞", en: "Aesthetic Appreciation", plain: "內在靈魂與外界的和諧秩序產生了不言而喻的共鳴。", color: "#63b7a6" },
-  { id: "interest", name: "興趣", en: "Interest", plain: "好奇心點燃了內在的引力，吸引意識向未知的世界探尋。", color: "#4fa6b7" },
-  { id: "entrancement", name: "著迷", en: "Entrancement", plain: "意識全然被某個客體吸納，暫時遺忘了時間與自我的邊界。", color: "#7f8ee8" },
-  { id: "romance", name: "浪漫", en: "Romance", plain: "將理想化的完美相互投射，共同編織一場溫柔的情感幻夢。", color: "#d989a5" },
-  { id: "craving", name: "渴望", en: "Craving", plain: "內在隱蔽的匱乏感，投射成對某個人事物的強烈索求。", color: "#d77f68" },
-  { id: "sexual", name: "性慾", en: "Sexual Desire", plain: "生命的原始驅力在尋求打破肉體邊界的融合與延續。", color: "#c95f7a" },
-  { id: "calmness", name: "平靜", en: "Calmness", plain: "內在與外在的風浪達成和解，回歸生命本源的定錨。", color: "#83bba5" },
+  { id: "interest", name: "興趣", en: "Interest", plain: "好奇心點燃了內在的引力，吸引意識向未知的世界探尋。", color: "#5a9bd8" },
+  { id: "entrancement", name: "著迷", en: "Entrancement", plain: "意識全然被某個客體吸納，暫時遺忘了時間與自我的邊界。", color: "#b1799b" },
+  { id: "romance", name: "浪漫", en: "Romance", plain: "將理想化的完美相互投射，共同編織一場溫柔的情感幻夢。", color: "#dc7f91" },
+  { id: "craving", name: "渴望", en: "Craving", plain: "內在隱蔽的匱乏感，投射成對某個人事物的強烈索求。", color: "#8f6fc8" },
+  { id: "sexual", name: "性慾", en: "Sexual Desire", plain: "生命的原始驅力在尋求打破肉體邊界的融合與延續。", color: "#c24b8e" },
+  { id: "calmness", name: "平靜", en: "Calmness", plain: "內在與外在的風浪達成和解，回歸生命本源的定錨。", color: "#a9b9ad" },
   { id: "nostalgia", name: "懷舊", en: "Nostalgia", plain: "用帶著濾鏡的記憶，去溫存一段回不去的安全時光。", color: "#c99a72" },
   { id: "sadness", name: "悲傷", en: "Sadness", plain: "靈魂在為已經失去且無法挽回的重要連結進行一場靜默的告別。", color: "#6e8fb8" },
-  { id: "empathy", name: "同理", en: "Empathetic Pain", plain: "打破孤立的隔絕，讓另一個生命的痛苦在自身心房裡共振。", color: "#70a6b8" },
-  { id: "anxiety", name: "焦慮", en: "Anxiety", plain: "大腦在提前預言並演練一個目前難以接受的不確定未來。", color: "#b98a3f" },
-  { id: "fear", name: "恐懼", en: "Fear", plain: "生存邊界直接面臨當下可見的威脅，身體發出的最高防禦警報。", color: "#53606e" },
-  { id: "horror", name: "恐怖", en: "Horror", plain: "目睹了生命秩序與道德底線被殘酷撕裂時的驚駭。", color: "#4a404b" },
-  { id: "anger", name: "憤怒", en: "Anger", plain: "個體邊界受到侵犯時，用火焰般的能量來防禦並宣告主權。", color: "#d45a42" },
-  { id: "disgust", name: "厭惡", en: "Disgust", plain: "身心本能地拉起防線，拒絕不潔或有毒的事物進入個體邊界。", color: "#79965f" },
-  { id: "envy", name: "忮忌", en: "Envy", plain: "在別人的擁有裡，殘忍地照見了自身未被滿足的匱乏。", color: "#6ea66e" },
+  { id: "empathy", name: "同理", en: "Empathetic Pain", plain: "打破孤立的隔絕，讓另一個生命的痛苦在自身心房裡共振。", color: "#d79ab0" },
+  { id: "anxiety", name: "焦慮", en: "Anxiety", plain: "大腦在提前預言並演練一個目前難以接受的不確定未來。", color: "#b69b56" },
+  { id: "fear", name: "恐懼", en: "Fear", plain: "生存邊界直接面臨當下可見的威脅，身體發出的最高防禦警報。", color: "#5f83ad" },
+  { id: "horror", name: "恐怖", en: "Horror", plain: "目睹了生命秩序與道德底線被殘酷撕裂時的驚駭。", color: "#6b5f87" },
+  { id: "anger", name: "憤怒", en: "Anger", plain: "個體邊界受到侵犯時，用火焰般的能量來防禦並宣告主權。", color: "#d73c31" },
+  { id: "disgust", name: "厭惡", en: "Disgust", plain: "身心本能地拉起防線，拒絕不潔或有毒的事物進入個體邊界。", color: "#5b8f82" },
+  { id: "envy", name: "忮忌", en: "Envy", plain: "在別人的擁有裡，殘忍地照見了自身未被滿足的匱乏。", color: "#5c6f54" },
   { id: "boredom", name: "無聊", en: "Boredom", plain: "生命力失去了聚焦的對象，靈魂在時間的靜止中感到空轉。", color: "#8f9a9c" },
   { id: "confusion", name: "困惑", en: "Confusion", plain: "舊有的認知地圖，無法順利導航眼前出現的全新現實。", color: "#9aa3d2" },
   { id: "awkwardness", name: "尷尬", en: "Awkwardness", plain: "預期的社會形象與當下真實表現產生了不協調的脫節。", color: "#c18aa4" },
-  { id: "awe", name: "敬畏", en: "Awe", plain: "在宏大得超越認知的存在面前，體驗到自我的微不足道與溶解。", color: "#5978c7" }
+  { id: "awe", name: "敬畏", en: "Awe", plain: "在宏大得超越認知的存在面前，體驗到自我的微不足道與溶解。", color: "#7b6682" }
 ];
 
 const EMOTION_GROUPS = [
@@ -134,7 +134,7 @@ const CHORD_PRESETS = [
     title: "Bedroom Pop 雨窗",
     style: "溫柔、低飽和、親密",
     moodTags: ["sadness", "nostalgia", "calmness", "empathy", "romance"],
-    color: "#8da7c9",
+    color: "#6f86a8",
     bpm: 82,
     chords: ["Cmaj7", "Am7", "Fmaj7", "G6"],
     notes: [[60, 64, 67, 71], [57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 64]]
@@ -154,7 +154,7 @@ const CHORD_PRESETS = [
     title: "Alt Rock 推進",
     style: "直接、宣言、動態",
     moodTags: ["anger", "triumph", "fear", "excitement", "disgust"],
-    color: "#d95d4b",
+    color: "#c2654f",
     bpm: 128,
     chords: ["Em", "C", "G", "D"],
     notes: [[52, 55, 59], [48, 52, 55], [55, 59, 62], [50, 54, 57]]
@@ -164,7 +164,7 @@ const CHORD_PRESETS = [
     title: "Piano Ballad 長信",
     style: "抒情、空間、慢慢推開",
     moodTags: ["sadness", "empathy", "nostalgia", "calmness"],
-    color: "#9a83c7",
+    color: "#e3b866",
     bpm: 72,
     chords: ["Am", "F", "C", "G"],
     notes: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]
@@ -174,7 +174,7 @@ const CHORD_PRESETS = [
     title: "Dream Pop 雲層",
     style: "漂浮、朦朧、寬闊",
     moodTags: ["awe", "entrancement", "confusion", "aesthetic"],
-    color: "#74a7e6",
+    color: "#9bc2ee",
     bpm: 96,
     chords: ["Cadd9", "G", "Em7", "Dsus4"],
     notes: [[60, 62, 67, 74], [55, 59, 62, 67], [52, 55, 59, 62], [50, 55, 57, 62]]
@@ -194,7 +194,7 @@ const CHORD_PRESETS = [
     title: "Anthem 開場",
     style: "開闊、上升、群像感",
     moodTags: ["triumph", "admiration", "joy", "excitement"],
-    color: "#e7a941",
+    color: "#efb53f",
     bpm: 118,
     chords: ["G", "D", "Em", "C"],
     notes: [[55, 59, 62], [50, 54, 57], [52, 55, 59], [48, 52, 55]]
@@ -216,7 +216,7 @@ const DRUM_PRESETS = [
     title: "Four On Floor",
     style: "舞曲、穩定",
     moodTags: ["joy", "excitement", "triumph", "satisfaction"],
-    color: "#e6b642",
+    color: "#b95d8b",
     bpm: 122,
     pattern: ["K", "H", "H", "H", "K", "S", "H", "H", "K", "H", "H", "H", "K", "S", "H", "H"]
   },
@@ -225,7 +225,7 @@ const DRUM_PRESETS = [
     title: "Trap Half-Time",
     style: "暗色、重拍",
     moodTags: ["anger", "fear", "craving", "envy", "horror"],
-    color: "#725b87",
+    color: "#77607b",
     bpm: 140,
     pattern: ["K", "H", "", "H", "", "H", "S", "H", "K", "H", "", "H", "K", "H", "S", "H"]
   },
@@ -234,7 +234,7 @@ const DRUM_PRESETS = [
     title: "J-Pop Drive",
     style: "開闊、推進",
     moodTags: ["interest", "admiration", "excitement", "awe"],
-    color: "#5bafd6",
+    color: "#4f9bb2",
     bpm: 154,
     pattern: ["K", "H", "K", "H", "S", "H", "K", "H", "K", "H", "K", "H", "S", "H", "K", "H"]
   },
@@ -252,7 +252,7 @@ const DRUM_PRESETS = [
     title: "UK Garage Skip",
     style: "跳動、明亮",
     moodTags: ["amusement", "joy", "interest", "excitement"],
-    color: "#77c8a5",
+    color: "#6fbeb8",
     bpm: 132,
     pattern: ["K", "", "H", "H", "", "S", "H", "", "K", "H", "", "H", "", "S", "H", "H"]
   },
@@ -270,7 +270,7 @@ const DRUM_PRESETS = [
     title: "Ambient Pulse",
     style: "克制、空間、心跳感",
     moodTags: ["calmness", "awe", "entrancement", "fear"],
-    color: "#6f89b8",
+    color: "#8f9db5",
     bpm: 68,
     pattern: ["K", "", "", "H", "", "", "S", "", "K", "", "", "H", "", "", "S", ""]
   }
@@ -707,7 +707,7 @@ function applyEmotionTheme() {
 
 function applyArrangementTheme() {
   document.documentElement.style.setProperty("--selected-chord-color", state.selectedChord?.color || "#8da7c9");
-  document.documentElement.style.setProperty("--selected-drum-color", state.selectedDrum?.color || "#94b58a");
+  document.documentElement.style.setProperty("--selected-drum-color", state.selectedDrum?.color || "#c9a06f");
   updateArrangementControls();
 }
 
@@ -2283,7 +2283,7 @@ function renderPromptNotes() {
   const drum = state.selectedDrum;
 
   target.innerHTML = `
-    <article class="prompt-summary-card summary-humming" style="--module-color:#6fb7e9">
+    <article class="prompt-summary-card summary-humming" style="--module-color:#e7a7bd">
       <h3>哼唱 <small>${escapeHtml(state.analysis?.notes?.length ? `${state.analysis.notes.length} 音` : "未分析")}</small></h3>
       <div class="summary-block is-clickable" data-summary-jump="humming" data-summary-selector="#waveCanvas">
         <span>原音頻</span>
@@ -2305,16 +2305,16 @@ function renderPromptNotes() {
       </div>
     </article>
 
-    <article class="prompt-summary-card summary-arrangement" style="--module-color:#82b98f">
+    <article class="prompt-summary-card summary-arrangement" style="--module-color:#c8a074">
       <h3>編曲 <small>和弦 / 鼓點</small></h3>
       <div class="summary-grid-two">
-        <div class="summary-block is-clickable" data-summary-jump="arrangement" data-summary-selector="#chordCards" style="--module-color:${chord?.color || "#82b98f"}">
+        <div class="summary-block is-clickable" data-summary-jump="arrangement" data-summary-selector="#chordCards" style="--module-color:${chord?.color || "#c8a074"}">
           <span>和弦</span>
           <strong>${escapeHtml(chord ? chord.title : "尚未選擇")}</strong>
           <small>${escapeHtml(chord ? `${chord.chords.join(" - ")} · ${chord.style}` : "可以只保留鼓點，和弦留空。")}</small>
           <button class="tiny-action" type="button" data-summary-play="chord" ${chord ? "" : "disabled"}>播放和弦</button>
         </div>
-        <div class="summary-block is-clickable" data-summary-jump="arrangement" data-summary-selector="#drumCards" style="--module-color:${drum?.color || "#82b98f"}">
+        <div class="summary-block is-clickable" data-summary-jump="arrangement" data-summary-selector="#drumCards" style="--module-color:${drum?.color || "#c9a06f"}">
           <span>鼓點</span>
           <strong>${escapeHtml(drum ? drum.title : "尚未選擇")}</strong>
           <small>${escapeHtml(drum ? `${drum.style} · 速度 ${drum.bpm}` : "可以只保留和弦，鼓點留空。")}</small>
@@ -2338,7 +2338,7 @@ function renderPromptNotes() {
       </div>
     </article>
 
-    <article class="prompt-summary-card summary-lyrics" style="--module-color:#d98ec7">
+    <article class="prompt-summary-card summary-lyrics" style="--module-color:#8fb7dc">
       <h3>歌詞 <small>${escapeHtml($("#themeInput").value.trim() || inferTheme())}</small></h3>
       <div class="summary-grid-two">
         <div class="summary-block summary-draft is-clickable" data-summary-jump="lyrics" data-summary-selector="#lyricsDraft">

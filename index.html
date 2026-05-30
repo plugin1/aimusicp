@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MotifLab - AI 音樂創作工作台</title>
-    <link rel="stylesheet" href="styles.css?v=20260530-ui14" />
+    <link rel="stylesheet" href="styles.css?v=20260530-ui15" />
   </head>
   <body>
     <div class="app-shell">
@@ -26,7 +26,7 @@
             <button class="system-launcher pos-humming" data-module-target="humming" type="button">
               <span class="app-icon icon-humming double-icon" aria-hidden="true">
                 <img class="main-sticker" src="assets/icons/speaking-head.png" alt="" />
-                <img class="mini-sticker" src="assets/icons/musical-note.png" alt="" />
+                <img class="mini-sticker note-sticker" src="assets/icons/musical-note.png" alt="" />
               </span>
               <strong>哼唱</strong>
             </button>
@@ -38,7 +38,8 @@
             </button>
             <button class="system-launcher pos-arrangement" data-module-target="arrangement" type="button">
               <span class="app-icon icon-arrangement" aria-hidden="true">
-                <img src="assets/icons/musical-keyboard.png" alt="" />
+                <i class="drum"></i>
+                <i class="guitar"></i>
               </span>
               <strong>編曲</strong>
             </button>
@@ -406,6 +407,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <button class="floating-jump" id="floatingJumpButton" type="button" hidden>下一頁</button>
     <button class="floating-return" id="returnPromptButton" type="button" hidden>返回提示詞</button>
-    <script src="app.js?v=20260530-ui14"></script>
+    <script src="app.js?v=20260530-ui15"></script>
   </body>
 </html>
