@@ -74,19 +74,25 @@ const CHOICES = {
     { label: "我對你說", value: "第一人稱，像把心事直接唱給某個人", desc: "最像日記或私信，情緒直接、親密。" },
     { label: "對你低語", value: "第二人稱，像在對聽眾或對方低聲說話", desc: "一直對著某個「你」唱，適合告白、質問、告別。" },
     { label: "電影旁白", value: "旁觀者視角，像電影旁白一樣描述故事", desc: "不急著說我愛你或我難過，而是先拍出場景。" },
-    { label: "多年後回看", value: "回憶視角，像多年後回看一段關係", desc: "帶距離感，適合懷舊、悲傷、釋然。" }
+    { label: "多年後回看", value: "回憶視角，像多年後回看一段關係", desc: "帶距離感，適合懷舊、悲傷、釋然。" },
+    { label: "雙人對話", value: "雙人對話，像兩個角色輪流把話唱出來", desc: "適合關係拉扯、和解、互相誤會的故事。" },
+    { label: "群像旁白", value: "群像視角，像把一群人的共同情緒唱出來", desc: "適合青春、城市、舞台感，主角不只是一個人。" }
   ],
   lyricStyle: [
     { label: "口語親密", value: "口語、親密、克制", desc: "像真的在說話，詞不要太華麗，適合小白快速完成。" },
     { label: "詩性留白", value: "詩性、意象密集、留白", desc: "畫面感重，不把意思說滿，適合氛圍型歌曲。" },
     { label: "電影敘事", value: "敘事、電影感、具體場景", desc: "像剪一段短片，先有場景、人物和動作。" },
-    { label: "宣言節奏", value: "直接、宣言式、強節奏", desc: "句子短、態度明確，適合搖滾、Hip-Hop、舞曲。" }
+    { label: "宣言節奏", value: "直接、宣言式、強節奏", desc: "句子短、態度明確，適合搖滾、Hip-Hop、舞曲。" },
+    { label: "冷感短句", value: "冷感、短句、少形容詞", desc: "像把情緒壓住不說破，適合暗色或高級感方向。" },
+    { label: "幽默口語", value: "幽默、生活化、帶一點自嘲", desc: "適合輕快、趣味、尷尬或荒謬感的題材。" }
   ],
   songStructure: [
     { label: "流行完整", value: "Verse - Pre Chorus - Chorus - Verse - Chorus - Bridge - Chorus", desc: "主歌鋪陳，副歌爆點，最通用的完整歌結構。" },
     { label: "電子流行", value: "Intro - Verse - Chorus - Drop - Verse - Chorus - Outro", desc: "有 Drop，適合節拍和氛圍推進。" },
     { label: "Hook 循環", value: "Verse - Hook - Verse - Hook - Bridge - Hook", desc: "重複核心句，適合洗腦、副歌短的歌。" },
-    { label: "日系 AABA", value: "A - A' - B - A''", desc: "段落像變奏，旋律和情緒慢慢轉開。" }
+    { label: "日系 AABA", value: "A - A' - B - A''", desc: "段落像變奏，旋律和情緒慢慢轉開。" },
+    { label: "短歌速寫", value: "Intro - Verse - Chorus - Outro", desc: "少段落、快進入重點，適合片段靈感先成形。" },
+    { label: "雙副歌推進", value: "Verse - Pre Chorus - Chorus A - Chorus B - Bridge - Chorus B", desc: "副歌分兩層，適合情緒逐步放大的歌。" }
   ],
   promptFormat: [
     { label: "完整提示詞", value: "professional", desc: "給 AI 音樂工具的完整描述，包含情緒、歌詞、編曲。" },
@@ -116,6 +122,29 @@ const PROVIDER_LINKS = {
   Suno: "https://suno.com/",
   "Gemini Lyria": "https://labs.google/fx/tools/music-fx",
   Udio: "https://www.udio.com/"
+};
+
+const EMPTY_CHORD = {
+  id: "no-chord",
+  title: "不使用和弦",
+  style: "已明確選擇留空",
+  moodTags: [],
+  color: "#8da7c9",
+  bpm: null,
+  chords: [],
+  notes: [],
+  empty: true
+};
+
+const EMPTY_DRUM = {
+  id: "no-drum",
+  title: "不使用鼓點",
+  style: "已明確選擇留空",
+  moodTags: [],
+  color: "#c9a06f",
+  bpm: null,
+  pattern: [],
+  empty: true
 };
 
 const CHORD_PRESETS = [
@@ -413,6 +442,8 @@ const state = {
   analysis: null,
   selectedChord: null,
   selectedDrum: null,
+  arrangementStep: "top",
+  arrangementAuditioned: false,
   lyricRecommendations: { rhymes: [], images: [], synonyms: [] },
   isArrangementLooping: false,
   audioNodes: [],
@@ -481,7 +512,8 @@ function bindEvents() {
   $("#saveIdeaButton").addEventListener("click", saveIdea);
   $("#cancelEditButton").addEventListener("click", cancelIdeaEdit);
   $("#clearIdeasButton").addEventListener("click", clearIdeas);
-  $("#recommendLyricsButton").addEventListener("click", recommendLyrics);
+  const recommendLyricsButton = $("#recommendLyricsButton");
+  if (recommendLyricsButton) recommendLyricsButton.addEventListener("click", recommendLyrics);
   $("#draftLyricsButton").addEventListener("click", draftLyrics);
   $("#globalLoopButton").addEventListener("click", toggleArrangementLoop);
   $("#globalStopButton").addEventListener("click", stopScheduledAudio);
@@ -505,6 +537,7 @@ function bindEvents() {
 
 function openModule(moduleId) {
   document.body.classList.add("in-app");
+  if (moduleId === "arrangement") state.arrangementStep = "top";
   $$(".module-panel").forEach((panel) => panel.classList.toggle("active", panel.id === moduleId));
   $$("[data-module-target]").forEach((button) => button.classList.toggle("active", button.dataset.moduleTarget === moduleId));
   applyEmotionTheme();
@@ -539,9 +572,18 @@ function getWorkflowJumpAction() {
   if (moduleId === "arrangement") {
     const chordColumn = $("#arrangement .chord-column");
     const drumColumn = $("#arrangement .drum-column");
-    if (isAheadOfViewport(chordColumn)) return { label: "下一頁 · 和弦", target: chordColumn };
-    if (isAheadOfViewport(drumColumn)) return { label: "下一頁 · 鼓點", target: drumColumn };
-    return { label: "回到本頁開頭", target: activePanel };
+    if (state.arrangementStep === "top") {
+      if (state.arrangementAuditioned && hasPlayableArrangement()) return { label: "下一頁 · 靈感", module: "inspiration" };
+      return { label: "下一頁 · 和弦", target: chordColumn, arrangementStep: "chord" };
+    }
+    if (state.arrangementStep === "chord") {
+      if (!hasChordChoice()) return { label: "回到本頁開頭", target: activePanel, arrangementStep: "top" };
+      return { label: "下一頁 · 鼓點", target: drumColumn, arrangementStep: "drum" };
+    }
+    if (hasDrumChoice() && hasPlayableArrangement()) {
+      return { label: "回到頂部 · 播放選中", target: activePanel, arrangementStep: "top", highlightPlay: true };
+    }
+    return { label: "回到本頁開頭", target: activePanel, arrangementStep: "top" };
   }
   if (moduleId === "lyrics") {
     return { label: "下一頁 · 提示詞", module: "prompt" };
@@ -582,7 +624,11 @@ function jumpToNextPanel() {
     openTargetProvider();
     return;
   }
+  if (action.arrangementStep) {
+    state.arrangementStep = action.arrangementStep;
+  }
   action.target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (action.highlightPlay) window.setTimeout(() => flashElement("#playComboButton"), 360);
   window.setTimeout(updateFloatingJump, 260);
 }
 
@@ -711,13 +757,50 @@ function applyArrangementTheme() {
   updateArrangementControls();
 }
 
+function hasChordChoice() {
+  return state.selectedChord !== null;
+}
+
+function hasDrumChoice() {
+  return state.selectedDrum !== null;
+}
+
+function hasPlayableChord() {
+  return Boolean(state.selectedChord && !state.selectedChord.empty);
+}
+
+function hasPlayableDrum() {
+  return Boolean(state.selectedDrum && !state.selectedDrum.empty);
+}
+
+function hasPlayableArrangement() {
+  return hasPlayableChord() || hasPlayableDrum();
+}
+
+function markArrangementChanged() {
+  state.arrangementAuditioned = false;
+  applyArrangementTheme();
+  updatePrompt();
+  updateProgress();
+  updateFloatingJump();
+}
+
+function flashElement(selector) {
+  const element = $(selector);
+  if (!element) return;
+  element.classList.remove("attention-pulse");
+  void element.offsetWidth;
+  element.classList.add("attention-pulse");
+  window.setTimeout(() => element.classList.remove("attention-pulse"), 1300);
+}
+
 function updateArrangementControls() {
-  const hasSelection = Boolean(state.selectedChord || state.selectedDrum);
+  const hasSelection = hasPlayableArrangement();
   const playButton = $("#playComboButton");
   const loopButton = $("#loopComboButton");
   if (playButton) {
     playButton.disabled = !hasSelection;
-    playButton.innerHTML = `${ICONS.play}${state.selectedChord && state.selectedDrum ? "和弦+鼓點" : "播放選中"}`;
+    playButton.innerHTML = `${ICONS.play}${hasPlayableChord() && hasPlayableDrum() ? "和弦+鼓點" : "播放選中"}`;
   }
   if (loopButton) {
     loopButton.disabled = !hasSelection;
@@ -1789,24 +1872,27 @@ function renderLyricDirection() {
   const dialect = $("#dialectInput").value;
   const structureLabel = getChoiceLabel(CHOICES.songStructure, structure);
   const styleLabel = getChoiceLabel(CHOICES.lyricStyle, style);
-  $("#lyricDirection").innerHTML = `<strong>目前方向</strong>
-    <p>${escapeHtml(theme)}，情緒偏向 ${escapeHtml(emotions)}。${escapeHtml(narrator)}，口吻保持 ${escapeHtml(styleLabel)}，押韻參考 ${escapeHtml(dialect)}。</p>
-    <ul>
-      <li>主歌：先放具體畫面，不急著解釋情緒。</li>
-      <li>副歌：把主題變成一句容易重複的核心句。</li>
-      <li>段落骨架：${escapeHtml(structureLabel)}</li>
-    </ul>`;
+  const target = $("#lyricDirection");
+  if (target) {
+    target.innerHTML = `<strong>目前方向</strong>
+      <p>${escapeHtml(theme)}，情緒偏向 ${escapeHtml(emotions)}。${escapeHtml(narrator)}，口吻保持 ${escapeHtml(styleLabel)}，押韻參考 ${escapeHtml(dialect)}。</p>
+      <ul>
+        <li>主歌：先放具體畫面，不急著解釋情緒。</li>
+        <li>副歌：把主題變成一句容易重複的核心句。</li>
+        <li>段落骨架：${escapeHtml(structureLabel)}</li>
+      </ul>`;
+  }
   renderLyricsIdeaBrief();
 }
 
 function renderLyricsIdeaBrief() {
   const target = $("#lyricsIdeaBrief");
   if (!target) return;
-  const ideas = state.ideas.slice(0, 3).map((idea) => idea.text).join(" / ");
-  const keywords = [...state.keywordMap.keys()].slice(0, 8).join("、");
+  const ideas = state.ideas.slice(0, 5).map((idea) => idea.text);
+  const keywords = [...state.keywordMap.keys()];
   target.innerHTML = `<h3>從靈感帶入</h3>
-    <p>${escapeHtml(ideas || "還沒有靈感原文。先到靈感頁記下一段話，這裡會自動帶入。")}</p>
-    <p><strong>詞庫：</strong>${escapeHtml(keywords || "等待提取")}</p>`;
+    <p>${ideas.length ? escapeHtml(ideas.join(" / ")) : "還沒有靈感原文。先到靈感頁記下一段話，這裡會自動帶入。"}</p>
+    <div class="linked-keywords" aria-label="完整詞庫">${keywords.length ? keywords.map((word) => `<span>${escapeHtml(word)}</span>`).join("") : "<span>等待提取</span>"}</div>`;
 }
 
 function getChoiceLabel(choices, value) {
@@ -1941,12 +2027,12 @@ function draftLyrics() {
 
 function renderChordCards() {
   const recommended = getRecommendedPresetIds(CHORD_PRESETS);
-  const emptySelected = state.selectedChord == null ? " selected" : "";
+  const emptySelected = state.selectedChord?.empty ? " selected" : "";
   $("#chordCards").innerHTML = `<div class="arrangement-null${emptySelected}">
       <strong>不使用和弦</strong>
-      <button class="tiny-action" type="button" data-clear-chord>${state.selectedChord ? "清空" : "已留空"}</button>
+      <button class="tiny-action" type="button" data-empty-chord>${state.selectedChord?.empty ? "取消選空" : "選空"}</button>
     </div>` + CHORD_PRESETS.map((preset) => {
-    const selected = preset.id === state.selectedChord?.id ? " selected" : "";
+    const selected = !state.selectedChord?.empty && preset.id === state.selectedChord?.id ? " selected" : "";
     const isRecommended = recommended.includes(preset.id) ? " recommended" : "";
     const badge = recommended.includes(preset.id) ? "情緒推薦" : "";
     return `<article class="music-card${selected}${isRecommended}" style="--preset-color: ${preset.color}" data-chord-id="${preset.id}">
@@ -1961,23 +2047,19 @@ function renderChordCards() {
       </footer>
     </article>`;
   }).join("");
-  $$("[data-clear-chord]").forEach((button) => {
+  $$("[data-empty-chord]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.selectedChord = null;
-      applyArrangementTheme();
+      state.selectedChord = state.selectedChord?.empty ? null : EMPTY_CHORD;
       renderChordCards();
-      updatePrompt();
-      updateProgress();
+      markArrangementChanged();
     });
   });
   $$("[data-select-chord]").forEach((button) => {
     button.addEventListener("click", () => {
       const preset = CHORD_PRESETS.find((item) => item.id === button.dataset.selectChord);
-      state.selectedChord = state.selectedChord?.id === preset.id ? null : preset;
-      applyArrangementTheme();
+      state.selectedChord = !state.selectedChord?.empty && state.selectedChord?.id === preset.id ? null : preset;
       renderChordCards();
-      updatePrompt();
-      updateProgress();
+      markArrangementChanged();
     });
   });
   $$("[data-play-chord]").forEach((button) => {
@@ -1991,12 +2073,12 @@ function renderChordCards() {
 
 function renderDrumCards() {
   const recommended = getRecommendedPresetIds(DRUM_PRESETS);
-  const emptySelected = state.selectedDrum == null ? " selected" : "";
+  const emptySelected = state.selectedDrum?.empty ? " selected" : "";
   $("#drumCards").innerHTML = `<div class="arrangement-null${emptySelected}">
       <strong>不使用鼓點</strong>
-      <button class="tiny-action" type="button" data-clear-drum>${state.selectedDrum ? "清空" : "已留空"}</button>
+      <button class="tiny-action" type="button" data-empty-drum>${state.selectedDrum?.empty ? "取消選空" : "選空"}</button>
     </div>` + DRUM_PRESETS.map((preset) => {
-    const selected = preset.id === state.selectedDrum?.id ? " selected" : "";
+    const selected = !state.selectedDrum?.empty && preset.id === state.selectedDrum?.id ? " selected" : "";
     const isRecommended = recommended.includes(preset.id) ? " recommended" : "";
     const badge = recommended.includes(preset.id) ? "情緒推薦" : "";
     return `<article class="music-card${selected}${isRecommended}" style="--preset-color: ${preset.color}" data-drum-id="${preset.id}">
@@ -2011,23 +2093,19 @@ function renderDrumCards() {
       </footer>
     </article>`;
   }).join("");
-  $$("[data-clear-drum]").forEach((button) => {
+  $$("[data-empty-drum]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.selectedDrum = null;
-      applyArrangementTheme();
+      state.selectedDrum = state.selectedDrum?.empty ? null : EMPTY_DRUM;
       renderDrumCards();
-      updatePrompt();
-      updateProgress();
+      markArrangementChanged();
     });
   });
   $$("[data-select-drum]").forEach((button) => {
     button.addEventListener("click", () => {
       const preset = DRUM_PRESETS.find((item) => item.id === button.dataset.selectDrum);
-      state.selectedDrum = state.selectedDrum?.id === preset.id ? null : preset;
-      applyArrangementTheme();
+      state.selectedDrum = !state.selectedDrum?.empty && state.selectedDrum?.id === preset.id ? null : preset;
       renderDrumCards();
-      updatePrompt();
-      updateProgress();
+      markArrangementChanged();
     });
   });
   $$("[data-play-drum]").forEach((button) => {
@@ -2060,7 +2138,7 @@ function stepClass(step) {
 }
 
 async function playChordPreset(preset) {
-  if (!preset) return;
+  if (!preset || preset.empty || !preset.notes?.length) return;
   const ctx = await getAudioContext();
   stopScheduledAudio();
   const now = ctx.currentTime + 0.05;
@@ -2084,7 +2162,7 @@ async function playChordPreset(preset) {
 }
 
 async function playDrumPreset(preset) {
-  if (!preset) return;
+  if (!preset || preset.empty || !preset.pattern?.length) return;
   const ctx = await getAudioContext();
   stopScheduledAudio();
   const now = ctx.currentTime + 0.05;
@@ -2099,7 +2177,7 @@ async function playDrumPreset(preset) {
 }
 
 async function playArrangementCombo({ loop = false } = {}) {
-  if (!state.selectedChord && !state.selectedDrum) {
+  if (!hasPlayableArrangement()) {
     setAudioState("先選用一組和弦或鼓點，再開始試聽。");
     return;
   }
@@ -2107,10 +2185,16 @@ async function playArrangementCombo({ loop = false } = {}) {
   stopScheduledAudio({ silent: true });
   state.isArrangementLooping = loop;
   scheduleArrangementCycle(ctx, ctx.currentTime + 0.05);
+  state.arrangementStep = "top";
+  state.arrangementAuditioned = true;
   updateGlobalPlayer();
   const mode = loop ? "循環播放" : "播放一次";
-  const parts = [state.selectedChord?.title, state.selectedDrum?.title].filter(Boolean).join(" + ");
+  const parts = [
+    hasPlayableChord() ? state.selectedChord.title : "",
+    hasPlayableDrum() ? state.selectedDrum.title : ""
+  ].filter(Boolean).join(" + ");
   setAudioState(`${mode}：${parts}。`);
+  updateFloatingJump();
 }
 
 function toggleArrangementLoop() {
@@ -2122,8 +2206,8 @@ function toggleArrangementLoop() {
 }
 
 function scheduleArrangementCycle(ctx, startTime) {
-  const chord = state.selectedChord;
-  const drum = state.selectedDrum;
+  const chord = hasPlayableChord() ? state.selectedChord : null;
+  const drum = hasPlayableDrum() ? state.selectedDrum : null;
   if (!chord && !drum) return;
   const bpm = drum?.bpm || chord?.bpm || 96;
   const beat = 60 / bpm;
@@ -2281,6 +2365,10 @@ function renderPromptNotes() {
   const lyricDraft = $("#lyricsDraft").value.trim();
   const chord = state.selectedChord;
   const drum = state.selectedDrum;
+  const chordTitle = chord ? chord.title : "尚未選擇";
+  const chordDetail = hasPlayableChord() ? `${chord.chords.join(" - ")} · ${chord.style}` : (chord?.empty ? "已選空：這首歌不帶和弦參考。" : "可以只保留鼓點，和弦留待 AI 自行處理。");
+  const drumTitle = drum ? drum.title : "尚未選擇";
+  const drumDetail = hasPlayableDrum() ? `${drum.style} · 速度 ${drum.bpm}` : (drum?.empty ? "已選空：這首歌不帶鼓點參考。" : "可以只保留和弦，鼓點留待 AI 自行處理。");
 
   target.innerHTML = `
     <article class="prompt-summary-card summary-humming" style="--module-color:#e7a7bd">
@@ -2310,19 +2398,19 @@ function renderPromptNotes() {
       <div class="summary-grid-two">
         <div class="summary-block is-clickable" data-summary-jump="arrangement" data-summary-selector="#chordCards" style="--module-color:${chord?.color || "#c8a074"}">
           <span>和弦</span>
-          <strong>${escapeHtml(chord ? chord.title : "尚未選擇")}</strong>
-          <small>${escapeHtml(chord ? `${chord.chords.join(" - ")} · ${chord.style}` : "可以只保留鼓點，和弦留空。")}</small>
-          <button class="tiny-action" type="button" data-summary-play="chord" ${chord ? "" : "disabled"}>播放和弦</button>
+          <strong>${escapeHtml(chordTitle)}</strong>
+          <small>${escapeHtml(chordDetail)}</small>
+          <button class="tiny-action" type="button" data-summary-play="chord" ${hasPlayableChord() ? "" : "disabled"}>播放和弦</button>
         </div>
         <div class="summary-block is-clickable" data-summary-jump="arrangement" data-summary-selector="#drumCards" style="--module-color:${drum?.color || "#c9a06f"}">
           <span>鼓點</span>
-          <strong>${escapeHtml(drum ? drum.title : "尚未選擇")}</strong>
-          <small>${escapeHtml(drum ? `${drum.style} · 速度 ${drum.bpm}` : "可以只保留和弦，鼓點留空。")}</small>
-          <button class="tiny-action" type="button" data-summary-play="drum" ${drum ? "" : "disabled"}>播放鼓點</button>
+          <strong>${escapeHtml(drumTitle)}</strong>
+          <small>${escapeHtml(drumDetail)}</small>
+          <button class="tiny-action" type="button" data-summary-play="drum" ${hasPlayableDrum() ? "" : "disabled"}>播放鼓點</button>
         </div>
       </div>
       <div class="summary-mini-actions">
-        <button class="tiny-action" type="button" data-summary-play="combo" ${chord || drum ? "" : "disabled"}>播放選中</button>
+        <button class="tiny-action" type="button" data-summary-play="combo" ${hasPlayableArrangement() ? "" : "disabled"}>播放選中</button>
       </div>
     </article>
 
@@ -2367,9 +2455,9 @@ function renderPromptNotes() {
       event.stopPropagation();
       if (button.disabled) return;
       if (button.dataset.summaryPlay === "source") playInputAudio();
-      if (button.dataset.summaryPlay === "chord" && state.selectedChord) playChordPreset(state.selectedChord);
-      if (button.dataset.summaryPlay === "drum" && state.selectedDrum) playDrumPreset(state.selectedDrum);
-      if (button.dataset.summaryPlay === "combo" && (state.selectedChord || state.selectedDrum)) playArrangementCombo({ loop: false });
+      if (button.dataset.summaryPlay === "chord" && hasPlayableChord()) playChordPreset(state.selectedChord);
+      if (button.dataset.summaryPlay === "drum" && hasPlayableDrum()) playDrumPreset(state.selectedDrum);
+      if (button.dataset.summaryPlay === "combo" && hasPlayableArrangement()) playArrangementCombo({ loop: false });
     });
   });
 }
@@ -2425,10 +2513,18 @@ function buildPrompt(format) {
   const theme = $("#themeInput").value.trim() || inferTheme();
   const lyrics = $("#lyricsDraft").value.trim();
   const keywords = [...state.keywordMap.keys()].slice(0, 12);
-  const chordLine = state.selectedChord ? state.selectedChord.chords.join(" - ") : "none";
-  const chordStyle = state.selectedChord?.style || "no chord reference selected";
-  const drumTitle = state.selectedDrum?.title || "none";
-  const drumStyle = state.selectedDrum?.style || "no drum reference selected";
+  const chordLine = hasPlayableChord()
+    ? state.selectedChord.chords.join(" - ")
+    : (state.selectedChord?.empty ? "none (explicitly no chord reference)" : "none");
+  const chordStyle = hasPlayableChord()
+    ? state.selectedChord.style
+    : (state.selectedChord?.empty ? "no chord layer requested" : "no chord reference selected");
+  const drumTitle = hasPlayableDrum()
+    ? state.selectedDrum.title
+    : (state.selectedDrum?.empty ? "none (explicitly no drum reference)" : "none");
+  const drumStyle = hasPlayableDrum()
+    ? state.selectedDrum.style
+    : (state.selectedDrum?.empty ? "no drum layer requested" : "no drum reference selected");
   const melody = state.analysis
     ? `${state.analysis.key || "unknown key"}, ${state.analysis.bpm ? Math.round(state.analysis.bpm) + " BPM" : "free tempo"}, motif notes: ${state.analysis.notes.slice(0, 12).map((note) => note.name).join(" - ")}`
     : "melody reference pending; use a singable, narrow-range topline";
@@ -2444,7 +2540,7 @@ function buildPrompt(format) {
     structure,
     keywords,
     melody,
-    chords: state.selectedChord?.chords || [],
+    chords: hasPlayableChord() ? state.selectedChord.chords : [],
     chordStyle,
     drums: drumTitle,
     drumStyle,
@@ -2550,13 +2646,13 @@ function buildPluginData() {
     `草稿：${$("#lyricsDraft").value.trim() || "尚未生成"}`
   ].join("\n");
   const arrangement = [
-    state.selectedChord
+    hasPlayableChord()
       ? `和弦：${state.selectedChord.title}，${state.selectedChord.chords.join(" - ")}`
-      : "和弦：留空",
+      : (state.selectedChord?.empty ? "和弦：已選空" : "和弦：尚未選擇"),
     `和弦氣質：${state.selectedChord?.style || "未選擇"}`,
-    state.selectedDrum
+    hasPlayableDrum()
       ? `鼓點：${state.selectedDrum.title}，${state.selectedDrum.style}`
-      : "鼓點：留空",
+      : (state.selectedDrum?.empty ? "鼓點：已選空" : "鼓點：尚未選擇"),
     `推薦依據：${getSelectedEmotionLabels(new Set([...state.lyricMoods, ...state.selectedMoods])).join(" / ")}`
   ].join("\n");
   return {
@@ -2573,8 +2669,8 @@ function updateProgress() {
     Boolean(state.analysis?.notes?.length),
     state.keywordMap.size > 0,
     $("#lyricsDraft").value.trim().length > 30,
-    Boolean(state.selectedChord),
-    Boolean(state.selectedDrum),
+    hasChordChoice(),
+    hasDrumChoice(),
     $("#themeInput").value.trim().length > 0
   ];
   const score = Math.round((pieces.filter(Boolean).length / pieces.length) * 100);

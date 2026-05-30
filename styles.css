@@ -293,6 +293,28 @@ textarea:focus {
   filter: drop-shadow(0 8px 12px rgba(17, 17, 17, 0.12));
 }
 
+.system-launcher .sticker-icon {
+  background: rgba(255, 255, 255, 0.64);
+  overflow: visible;
+}
+
+.system-launcher .sticker-icon > img {
+  width: 102px;
+  height: 102px;
+  max-width: none;
+  max-height: none;
+}
+
+.icon-humming.sticker-icon > img {
+  width: 108px;
+  height: 108px;
+}
+
+.icon-prompt.sticker-icon > img {
+  width: 110px;
+  height: 110px;
+}
+
 .double-icon .main-sticker {
   width: 62px;
   height: 62px;
@@ -1010,8 +1032,8 @@ h3 {
 
 .arrangement-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
   margin-top: 12px;
 }
 
@@ -1440,6 +1462,83 @@ canvas {
   margin-top: 12px;
 }
 
+.lyrics-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  grid-template-areas:
+    "idea language"
+    "direction writing";
+  gap: 18px;
+  align-items: start;
+}
+
+.lyrics-layout > .tool-panel {
+  padding-bottom: 16px;
+}
+
+.lyrics-idea-panel {
+  grid-area: idea;
+}
+
+.lyrics-language-panel {
+  grid-area: language;
+}
+
+.lyrics-direction-panel {
+  grid-area: direction;
+}
+
+.lyrics-writing-panel {
+  grid-area: writing;
+}
+
+.lyrics-language-row,
+.lyrics-rhyme-row {
+  display: grid;
+  gap: 12px;
+}
+
+.lyrics-language-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lyrics-rhyme-row {
+  grid-template-columns: minmax(180px, 0.42fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.lyrics-layout .reference-panel {
+  margin-top: 0;
+}
+
+.lyrics-writing-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.lyrics-writing-panel .mood-picker {
+  max-width: 520px;
+  justify-self: stretch;
+}
+
+.linked-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.linked-keywords span {
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--module-color) 26%, var(--line));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 780;
+}
+
 .reference-panel {
   margin-top: 14px;
   padding: 13px;
@@ -1489,7 +1588,7 @@ canvas {
 .arrangement-column {
   position: relative;
   min-width: 0;
-  min-height: calc(100vh - 152px);
+  min-height: 0;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1513,7 +1612,7 @@ canvas {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
 }
 
@@ -1648,12 +1747,13 @@ canvas {
 
 .prompt-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(420px, 0.78fr);
+  grid-template-columns: minmax(230px, 0.72fr) minmax(310px, 0.9fr) minmax(420px, 1.18fr);
   gap: 18px;
   align-items: stretch;
 }
 
-.prompt-main {
+.prompt-main,
+.prompt-stack {
   display: grid;
   gap: 18px;
   align-content: start;
@@ -1831,6 +1931,10 @@ canvas {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.prompt-provider-panel {
+  align-self: start;
+}
+
 .prompt-panel {
   position: sticky;
   top: 74px;
@@ -1842,6 +1946,23 @@ canvas {
 .prompt-panel textarea {
   flex: 1 1 auto;
   min-height: max(680px, calc(100vh - 172px));
+}
+
+.attention-pulse {
+  animation: attentionPulse 1.2s ease;
+}
+
+@keyframes attentionPulse {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  18%,
+  78% {
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--selected-drum-color) 22%, transparent),
+      0 0 0 8px color-mix(in srgb, var(--selected-chord-color) 16%, transparent);
+  }
 }
 
 .tip,
@@ -1955,10 +2076,21 @@ canvas {
 
   .tool-grid.two,
   .tool-grid.three,
+  .lyrics-layout,
+  .lyrics-language-row,
+  .lyrics-rhyme-row,
   .arrangement-grid,
   .prompt-layout,
   .prompt-options {
     grid-template-columns: 1fr;
+  }
+
+  .lyrics-layout {
+    grid-template-areas:
+      "idea"
+      "language"
+      "direction"
+      "writing";
   }
 
   .prompt-panel {
@@ -2061,7 +2193,9 @@ canvas {
   }
 
   .prompt-notes-grid,
-  .prompt-options {
+  .prompt-options,
+  .lyrics-language-row,
+  .lyrics-rhyme-row {
     grid-template-columns: 1fr;
   }
 
