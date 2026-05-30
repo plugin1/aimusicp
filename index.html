@@ -1,14 +1,408 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>-</title>
-    <script type="module" crossorigin src="./assets/index-nx4TVUpI.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-D-wJ33LE.css">
+    <title>MotifLab - AI 音樂創作工作台</title>
+    <link rel="stylesheet" href="styles.css?v=20260530-ui13" />
   </head>
   <body>
-    <div id="root"></div>
+    <div class="app-shell">
+      <aside class="command-deck" aria-label="系統入口">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <div>
+            <strong>MotifLab</strong>
+            <span>AI Music Studio</span>
+          </div>
+        </div>
+
+        <div class="system-map" id="systemMap" aria-label="系統啟動器">
+          <div class="map-title" aria-hidden="true">
+            <span class="logo-word">MuUsic</span>
+          </div>
+
+          <div class="launcher-grid" aria-label="主要系統">
+            <button class="system-launcher pos-humming" data-module-target="humming" type="button">
+              <span class="app-icon icon-humming double-icon" aria-hidden="true">
+                <img class="main-sticker" src="assets/icons/speaking-head.png" alt="" />
+                <img class="mini-sticker" src="assets/icons/musical-note.png" alt="" />
+              </span>
+              <strong>哼唱</strong>
+            </button>
+            <button class="system-launcher pos-inspiration" data-module-target="inspiration" type="button">
+              <span class="app-icon icon-inspiration" aria-hidden="true">
+                <img src="assets/icons/light-bulb.png" alt="" />
+              </span>
+              <strong>靈感</strong>
+            </button>
+            <button class="system-launcher pos-arrangement" data-module-target="arrangement" type="button">
+              <span class="app-icon icon-arrangement" aria-hidden="true">
+                <img src="assets/icons/musical-keyboard.png" alt="" />
+              </span>
+              <strong>編曲</strong>
+            </button>
+            <button class="system-launcher pos-lyrics" data-module-target="lyrics" type="button">
+              <span class="app-icon icon-lyrics double-icon" aria-hidden="true">
+                <img class="main-sticker" src="assets/icons/memo.png" alt="" />
+                <img class="mini-sticker pen-sticker" src="assets/icons/fountain-pen.png" alt="" />
+              </span>
+              <strong>歌詞</strong>
+            </button>
+          </div>
+
+          <button class="system-launcher pos-prompt" data-module-target="prompt" type="button">
+            <span class="app-icon icon-prompt" aria-hidden="true">
+              <img src="assets/icons/magic-wand.png" alt="" />
+            </span>
+            <strong>提示詞</strong>
+          </button>
+        </div>
+
+        <div class="project-card">
+          <label for="projectTitle">作品名</label>
+          <input id="projectTitle" type="text" value="未命名歌曲" maxlength="38" />
+        </div>
+
+        <div class="status-strip" aria-label="專案狀態">
+          <span><b id="noteCount">0</b>旋律音</span>
+          <span><b id="keywordCount">0</b>詞庫詞</span>
+          <span><b id="promptScore">42</b>% 完整度</span>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="back-home icon-button" id="backHomeButton" type="button" title="回首頁" aria-label="回首頁">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5" /><path d="M6.5 10.5V20h11v-9.5" /><path d="M10 20v-5h4v5" /></svg>
+            </button>
+            <nav class="module-switcher" aria-label="切換系統">
+              <button type="button" data-module-target="humming">哼唱</button>
+              <button type="button" data-module-target="arrangement">編曲</button>
+              <span class="nav-divider" aria-hidden="true"></span>
+              <button type="button" data-module-target="inspiration">靈感</button>
+              <button type="button" data-module-target="lyrics">歌詞</button>
+              <span class="nav-divider" aria-hidden="true"></span>
+              <button type="button" data-module-target="prompt">提示詞</button>
+            </nav>
+          </div>
+          <div class="global-player" aria-label="置頂試聽">
+            <button id="globalLoopButton" class="global-play-button" type="button" title="循環目前和弦與鼓點" aria-label="循環目前和弦與鼓點">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7Z" /></svg>
+              <span id="globalPlayerLabel">背景試聽</span>
+            </button>
+            <button id="globalStopButton" class="icon-button transport-button" type="button" title="停止試聽" aria-label="停止試聽">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7Z" /></svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="module-stage">
+          <section class="module-panel active" id="humming" aria-labelledby="hummingTitle">
+            <div class="module-head">
+              <div>
+                <p class="eyebrow">旋律素材</p>
+                <h2 id="hummingTitle">哼唱系統</h2>
+                <p>可以直接錄一段哼唱，也可以上傳已有音頻。系統會在瀏覽器裡做本地分析，先給旋律輪廓和歌詞字數建議。</p>
+              </div>
+            </div>
+
+            <div class="tool-grid humming-flow page-stack">
+              <div class="tool-panel">
+                <h3>放入你的哼唱</h3>
+                <div class="source-grid">
+                  <div class="upload-panel source-card">
+                    <input id="audioFile" type="file" accept="audio/*" />
+                    <label class="drop-zone" for="audioFile">
+                      <span aria-hidden="true">↑</span>
+                      <strong id="fileLabel">上傳音頻</strong>
+                      <small>支援 WAV / MP3 / M4A / OGG</small>
+                    </label>
+                  </div>
+                  <div class="record-panel source-card">
+                    <strong>直接錄製哼唱</strong>
+                    <p>點開始後對著麥克風哼唱。若瀏覽器詢問權限，允許麥克風即可。</p>
+                    <div class="action-row">
+                      <button id="recordButton" class="primary-action" type="button">
+                        <span aria-hidden="true">●</span>開始錄音
+                      </button>
+                      <button id="stopRecordButton" class="ghost-action" type="button" disabled>
+                        <span aria-hidden="true">■</span>停止
+                      </button>
+                    </div>
+                    <span class="record-state" id="recordState">待命</span>
+                  </div>
+                </div>
+                <details class="soft-details">
+                  <summary>進階：手動輸入旋律</summary>
+                  <label for="notationInput">簡譜草稿</label>
+                  <textarea id="notationInput" rows="3" placeholder="例：1 2 3 5 | 6 - 5 3"></textarea>
+                  <button id="applyNotationButton" class="ghost-action" type="button">
+                    <span aria-hidden="true">↯</span>套用簡譜預覽
+                  </button>
+                </details>
+                <div class="action-row">
+                  <button id="analyzeButton" class="primary-action" type="button" disabled>
+                    <span aria-hidden="true">↯</span>分析旋律
+                  </button>
+                  <button id="playInputButton" class="ghost-action" type="button" disabled>
+                    <span aria-hidden="true">▶</span>播放原音
+                  </button>
+                </div>
+                <canvas id="waveCanvas" width="860" height="86" aria-label="音頻波形"></canvas>
+              </div>
+
+              <div class="tool-panel score-panel">
+                <h3>旋律預覽</h3>
+                <div class="metric-grid">
+                  <div class="has-tip" data-tip="歌曲速度。數字越大，感覺越快。">
+                    <span>速度</span>
+                    <strong id="tempoMetric">--</strong>
+                  </div>
+                  <div class="has-tip" data-tip="歌曲大概圍繞哪個音在走。先把它理解成歌曲的音色地基就好。">
+                    <span>調性感覺</span>
+                    <strong id="keyMetric">--</strong>
+                  </div>
+                  <div>
+                    <span>時長</span>
+                    <strong id="durationMetric">--</strong>
+                  </div>
+                  <div class="syllable-metric">
+                    <span>字數建議</span>
+                    <strong id="syllableAdvice">--</strong>
+                  </div>
+                </div>
+                <canvas id="scoreCanvas" width="860" height="148" aria-label="旋律預覽"></canvas>
+                <p class="analysis-note" id="analysisNote"></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="module-panel" id="inspiration" aria-labelledby="inspirationTitle">
+            <div class="module-head">
+              <div>
+                <p class="eyebrow">文字素材</p>
+                <h2 id="inspirationTitle">靈感系統</h2>
+                <p>把畫面、句子、人物和場景記下來。每條靈感都可以按情緒找回、二次編輯，系統也會保留更新記錄。</p>
+              </div>
+              <button id="clearIdeasButton" class="icon-button" type="button" title="清空靈感">
+                <span aria-hidden="true">⌫</span>
+              </button>
+            </div>
+
+            <div class="tool-grid inspiration-flow page-stack">
+              <div class="tool-panel idea-editor-panel">
+                <input id="editingIdeaId" type="hidden" />
+                <label for="ideaInput">靈感內容</label>
+                <textarea id="ideaInput" rows="7" placeholder="雨停後的便利店、凌晨三點的耳機、沒有寄出的道歉..."></textarea>
+                <p class="edit-note" id="editModeNote">新增一條靈感。</p>
+                <div class="field-head">
+                  <h3>情緒分類</h3>
+                  <span>可多選，懸停看完整解析</span>
+                </div>
+                <div class="mood-picker" id="moodPicker" aria-label="靈感情緒分類"></div>
+                <div class="action-row">
+                  <button id="saveIdeaButton" class="primary-action" type="button">
+                    <span aria-hidden="true">+</span>加入靈感
+                  </button>
+                  <button id="cancelEditButton" class="ghost-action" type="button" disabled>
+                    取消編輯
+                  </button>
+                </div>
+              </div>
+              <div class="tool-panel idea-library-panel">
+                <div class="list-head">
+                  <h3>靈感原文</h3>
+                  <span id="ideaCount">0 items</span>
+                </div>
+                <div class="filter-panel">
+                  <strong>按情緒找回</strong>
+                  <div class="filter-chips" id="ideaFilterPicker" aria-label="按情緒篩選靈感"></div>
+                </div>
+                <div class="idea-list" id="ideaList"></div>
+                <details class="soft-details" open>
+                  <summary>目前詞庫</summary>
+                  <div class="keyword-bank" id="keywordBank" aria-label="詞庫"></div>
+                </details>
+              </div>
+            </div>
+          </section>
+
+          <section class="module-panel" id="lyrics" aria-labelledby="lyricsTitle">
+            <div class="module-head">
+              <div>
+                <p class="eyebrow">歌詞整理</p>
+                <h2 id="lyricsTitle">歌詞系統</h2>
+                <p>先定主題、視角、語言口味和段落任務。參考詞會常駐顯示，方便隨時插入草稿。</p>
+              </div>
+            </div>
+
+            <div class="tool-grid three page-stack">
+              <div class="tool-panel">
+                <aside class="linked-notes" id="lyricsIdeaBrief" aria-label="靈感帶入"></aside>
+                <label for="themeInput">核心主題</label>
+                <input id="themeInput" type="text" placeholder="失眠後才說出口的告別" />
+                <label>演唱視角</label>
+                <input id="narratorInput" type="hidden" value="第一人稱，像把心事直接唱給某個人" />
+                <div class="choice-grid" id="narratorChoices"></div>
+                <label for="rhymeInput">押韻尾音 <span class="tip" data-tip="一句歌詞最後相近的聲音。例如中文 ai 可以押「愛、來、海」。">?</span></label>
+                <input id="rhymeInput" type="text" placeholder="ang / ai / ight / あい / 아" />
+                <label>跨語詞庫</label>
+                <input id="targetLang" type="hidden" value="中文" />
+                <div class="choice-grid mini" id="languageChoices" aria-label="跨語詞庫"></div>
+                <label>發音口味</label>
+                <input id="dialectInput" type="hidden" value="國語發音" />
+                <div class="choice-grid mini" id="dialectChoices"></div>
+              </div>
+
+              <div class="tool-panel">
+                <label>歌詞口吻</label>
+                <input id="lyricStyle" type="hidden" value="口語、親密、克制" />
+                <div class="choice-grid" id="lyricStyleChoices"></div>
+                <label>段落骨架</label>
+                <input id="songStructure" type="hidden" value="Verse - Pre Chorus - Chorus - Verse - Chorus - Bridge - Chorus" />
+                <div class="choice-grid" id="songStructureChoices"></div>
+                <button id="recommendLyricsButton" class="primary-action" type="button">
+                  <span aria-hidden="true">↻</span>更新方向筆記
+                </button>
+                <div class="direction-box" id="lyricDirection"></div>
+
+                <section class="reference-panel">
+                  <h3>參考詞</h3>
+                  <div class="recommendations">
+                    <div>
+                      <h3>押韻詞</h3>
+                      <div id="rhymeList" class="chip-list"></div>
+                    </div>
+                    <div>
+                      <h3>意象</h3>
+                      <div id="imageList" class="chip-list"></div>
+                    </div>
+                    <div>
+                      <h3>同義替換</h3>
+                      <div id="synonymList" class="chip-list"></div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div class="tool-panel lyric-editor">
+                <div class="field-head">
+                  <h3>歌詞情緒</h3>
+                  <span>懸停看解析，選擇會改變界面色彩</span>
+                </div>
+                <div class="mood-picker compact" id="lyricMoodPicker" aria-label="歌詞情緒分類"></div>
+                <div class="list-head">
+                  <h3>歌詞草稿</h3>
+                  <button id="draftLyricsButton" class="ghost-action" type="button">
+                    <span aria-hidden="true">▤</span>生成骨架
+                  </button>
+                </div>
+                <textarea id="lyricsDraft" rows="12" placeholder="先用上方選項整理方向，再生成骨架或自己寫。"></textarea>
+              </div>
+            </div>
+          </section>
+
+          <section class="module-panel" id="arrangement" aria-labelledby="arrangementTitle">
+            <div class="module-head">
+              <div>
+                <p class="eyebrow">風格試聽</p>
+                <h2 id="arrangementTitle">編曲系統</h2>
+                <p>和弦與鼓點會根據你選的情緒給出推薦。這裡的聲音是瀏覽器即時合成的示意音，不是最終成品。</p>
+              </div>
+              <div class="arrangement-actions">
+                <div class="action-row">
+                  <button id="playComboButton" class="primary-action" type="button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7Z" /></svg>和弦+鼓點
+                  </button>
+                  <button id="loopComboButton" class="ghost-action" type="button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 2l4 4-4 4" /><path d="M3 11V9a3 3 0 0 1 3-3h15" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a3 3 0 0 1-3 3H3" /></svg>循環背景
+                  </button>
+                  <button id="stopAudioButton" class="icon-button" type="button" title="停止試聽">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7Z" /></svg>
+                  </button>
+                </div>
+                <small class="combo-note">合併試聽以鼓點速度為主，和弦會自動拉伸對齊；速度差太大時風格會被鼓點帶走。</small>
+              </div>
+            </div>
+            <div class="audio-state" id="audioState">選用和弦或鼓點後可以單獨播放，也可以合併試聽。</div>
+
+            <div class="arrangement-grid page-stack">
+              <div class="arrangement-column chord-column">
+                <h3>和弦組合 <span class="tip" data-tip="幾個和弦輪流出現，形成歌曲的情緒底色。">?</span></h3>
+                <div class="card-grid" id="chordCards"></div>
+              </div>
+              <div class="arrangement-column drum-column">
+                <h3>鼓點節奏 <span class="tip" data-tip="鼓的重拍與小節奏，決定身體想不想跟著動。">?</span></h3>
+                <div class="card-grid" id="drumCards"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="module-panel" id="prompt" aria-labelledby="promptTitle">
+            <div class="module-head">
+              <div>
+                <p class="eyebrow">輸出整理</p>
+                <h2 id="promptTitle">提示詞系統</h2>
+                <p>把旋律、靈感、歌詞方向和編曲選擇合併成一段可用提示詞。正式接 AI 音樂工具時，API key 應該放在後端。</p>
+              </div>
+            </div>
+
+            <div class="prompt-notes-grid interactive-summary" id="promptSystemNotes" aria-label="各系統結果筆記"></div>
+            <div class="prompt-layout">
+              <div class="prompt-main">
+                <div class="prompt-options">
+                  <section class="tool-panel">
+                    <h3>輸出格式</h3>
+                    <input id="promptFormat" type="hidden" value="professional" />
+                    <div class="choice-grid" id="promptFormatChoices"></div>
+                  </section>
+                  <section class="tool-panel">
+                    <h3>AI 音樂工具接入</h3>
+                    <input id="providerMode" type="hidden" value="manual" />
+                    <div class="choice-grid" id="providerModeChoices"></div>
+                    <label for="providerName">目標平台</label>
+                    <input id="providerName" type="text" value="Gemini Lyria / ElevenLabs Music / Suno 手動貼上" />
+                    <div class="api-note">
+                      <strong>API key 是什麼？</strong>
+                      <p>它像「你的 AI 服務鑰匙和計費卡」。前端不能直接放這把鑰匙，正式接入時要放在後端，由後端代替前端去請求音樂生成服務。</p>
+                    </div>
+                  </section>
+                  <section class="tool-panel">
+                    <h3>限制條件</h3>
+                    <label for="negativePrompt">避免元素 <span class="tip" data-tip="告訴 AI 不要做什麼。例如不要雜訊、不要太多混響。">?</span></label>
+                    <input id="negativePrompt" type="text" value="低清晰度人聲、過度混響、雜訊、突兀轉調" />
+                    <div class="action-row">
+                      <button id="generatePromptButton" class="primary-action" type="button">
+                        <span aria-hidden="true">→</span>更新提示詞
+                      </button>
+                      <button id="copyPluginDataButton" class="ghost-action" type="button">
+                        <span aria-hidden="true">⧉</span>複製插件資料
+                      </button>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <aside class="tool-panel prompt-panel">
+                <div class="list-head">
+                  <h3>生成結果</h3>
+                  <button id="copyPromptButton" class="primary-action" type="button">
+                    <span aria-hidden="true">⧉</span>複製
+                  </button>
+                </div>
+                <textarea id="promptOutput" rows="24" spellcheck="false"></textarea>
+              </aside>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <button class="floating-jump" id="floatingJumpButton" type="button" hidden>下一頁</button>
+    <button class="floating-return" id="returnPromptButton" type="button" hidden>返回提示詞</button>
+    <script src="app.js?v=20260530-ui13"></script>
   </body>
 </html>
