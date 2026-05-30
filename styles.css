@@ -956,11 +956,17 @@ h3 {
   margin-top: 14px;
 }
 
-.source-grid,
-.arrangement-grid {
+.source-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin-top: 12px;
+}
+
+.arrangement-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
   margin-top: 12px;
 }
 
@@ -1438,6 +1444,7 @@ canvas {
 .arrangement-column {
   position: relative;
   min-width: 0;
+  min-height: calc(100vh - 152px);
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1461,6 +1468,7 @@ canvas {
 
 .card-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
   gap: 12px;
 }
 
@@ -1507,6 +1515,7 @@ canvas {
 
 .arrangement-null {
   display: flex;
+  grid-column: 1 / -1;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
@@ -1594,7 +1603,7 @@ canvas {
 
 .prompt-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.36fr);
+  grid-template-columns: minmax(0, 0.92fr) minmax(420px, 0.78fr);
   gap: 18px;
   align-items: stretch;
 }
@@ -1619,7 +1628,7 @@ canvas {
 
 .prompt-summary-card {
   min-width: 0;
-  height: 306px;
+  height: 286px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1654,6 +1663,22 @@ canvas {
   display: grid;
   gap: 4px;
   overflow: auto;
+}
+
+.summary-humming .summary-block {
+  overflow: hidden;
+}
+
+.summary-humming .summary-wave-canvas {
+  height: 36px;
+}
+
+.summary-inspiration .summary-block:first-of-type {
+  flex: 1.65 1 0;
+}
+
+.summary-inspiration .summary-block:last-of-type {
+  flex: 0.72 1 0;
 }
 
 .summary-block.is-clickable {
@@ -1702,7 +1727,7 @@ canvas {
 }
 
 .summary-lyrics .summary-grid-two {
-  grid-template-columns: minmax(0, 1.45fr) minmax(150px, 0.75fr);
+  grid-template-columns: minmax(0, 1.9fr) minmax(138px, 0.55fr);
 }
 
 .summary-wave-canvas {
@@ -1749,8 +1774,16 @@ canvas {
 
 .prompt-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.prompt-options .tool-panel:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.provider-grid.choice-grid.mini {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .prompt-panel {
@@ -1763,7 +1796,7 @@ canvas {
 
 .prompt-panel textarea {
   flex: 1 1 auto;
-  min-height: max(620px, calc(100vh - 190px));
+  min-height: max(680px, calc(100vh - 172px));
 }
 
 .tip,

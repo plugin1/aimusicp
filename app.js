@@ -93,11 +93,29 @@ const CHOICES = {
     { label: "短版提示詞", value: "compact", desc: "比較短，適合貼到限制字數的平台。" },
     { label: "API JSON", value: "json", desc: "給工程接 API 用的資料格式，不是一般使用者必讀。" }
   ],
+  providerTarget: [
+    { label: "Suno", value: "Suno", desc: "預設平台。可搭配右下角 M 插件，把四個系統筆記帶到 Suno 旁邊看。" },
+    { label: "Gemini / Lyria", value: "Gemini Lyria", desc: "偏研究與 Google 生態的音樂生成方向，提示詞會保留較完整的結構。" },
+    { label: "Udio", value: "Udio", desc: "偏完整歌曲生成平台，適合把歌詞與風格描述一起貼過去。" },
+    { label: "其他工具", value: "其他 AI 音樂工具", desc: "保留通用寫法，之後可以照平台限制再縮短。" }
+  ],
   providerMode: [
-    { label: "手動貼上", value: "manual", desc: "先複製提示詞，自己貼到 Suno、Gemini、Udio 等工具。" },
-    { label: "後端中轉", value: "api", desc: "網站後端保管 API key，再代替使用者去請求音樂生成服務。" },
-    { label: "自動流程", value: "webhook", desc: "完成提示詞後自動送出任務，生成完再回傳音頻。" }
+    { label: "複製到平台", value: "manual", desc: "目前最穩：先生成提示詞，再貼到目標平台。" },
+    { label: "後端 API", value: "api", desc: "正式產品才用。API key 放伺服器，前端不直接碰鑰匙。" },
+    { label: "自動送出", value: "webhook", desc: "未來流程：整理完後自動送任務，完成後回傳音頻。" }
+  ],
+  negativePrompt: [
+    { label: "乾淨人聲", value: "低清晰度人聲、口齒不清、雜訊、過度混響", desc: "優先避免聽不清楚或糊在一起的人聲。" },
+    { label: "自然編曲", value: "突兀轉調、刺耳高頻、低頻糊成一團、過度壓縮", desc: "避免編曲忽然跳走，整體比較順。" },
+    { label: "不要太滿", value: "過多樂器、過度堆疊、搶人聲的音效、過度花俏", desc: "讓主旋律和歌詞留出空間。" },
+    { label: "保守安全", value: "低清晰度人聲、雜訊、突兀轉調、過度混響、過多樂器", desc: "通用預設，適合第一次生成。" }
   ]
+};
+
+const PROVIDER_LINKS = {
+  Suno: "https://suno.com/",
+  "Gemini Lyria": "https://labs.google/fx/tools/music-fx",
+  Udio: "https://www.udio.com/"
 };
 
 const CHORD_PRESETS = [
@@ -480,6 +498,7 @@ function bindEvents() {
       if (["targetLang", "rhymeInput", "themeInput", "narratorInput", "lyricStyle", "songStructure", "dialectInput"].includes(id)) recommendLyrics();
       updatePrompt();
       updateProgress();
+      updateFloatingJump();
     });
   });
 }
@@ -499,18 +518,42 @@ function setupPanelJumps() {
   updateFloatingJump();
 }
 
-function getActiveStackPanels() {
-  const panel = $(".module-panel.active");
-  const stack = panel?.querySelector(".page-stack");
-  if (!stack) return [];
-  return Array.from(stack.children).filter((item) => item.classList.contains("tool-panel") || item.classList.contains("arrangement-column"));
+function isAheadOfViewport(element, offset = 118) {
+  return Boolean(element && element.getBoundingClientRect().top > offset);
 }
 
-function getNextPanelTarget() {
-  const panels = getActiveStackPanels();
-  if (panels.length < 2) return null;
-  const threshold = 96;
-  return panels.find((panel, index) => index > 0 && panel.getBoundingClientRect().top > threshold) || panels[0];
+function getWorkflowJumpAction() {
+  const activePanel = $(".module-panel.active");
+  if (!activePanel) return null;
+  const moduleId = activePanel.id;
+  if (moduleId === "humming") {
+    const scorePanel = $("#humming .score-panel");
+    if (isAheadOfViewport(scorePanel)) return { label: "下一頁 · 旋律預覽", target: scorePanel };
+    return { label: "下一頁 · 編曲", module: "arrangement" };
+  }
+  if (moduleId === "inspiration") {
+    const libraryPanel = $("#inspiration .idea-library-panel");
+    if (isAheadOfViewport(libraryPanel)) return { label: "下一頁 · 靈感原文", target: libraryPanel };
+    return { label: "下一頁 · 歌詞", module: "lyrics" };
+  }
+  if (moduleId === "arrangement") {
+    const chordColumn = $("#arrangement .chord-column");
+    const drumColumn = $("#arrangement .drum-column");
+    if (isAheadOfViewport(chordColumn)) return { label: "下一頁 · 和弦", target: chordColumn };
+    if (isAheadOfViewport(drumColumn)) return { label: "下一頁 · 鼓點", target: drumColumn };
+    return { label: "回到本頁開頭", target: activePanel };
+  }
+  if (moduleId === "lyrics") {
+    return { label: "下一頁 · 提示詞", module: "prompt" };
+  }
+  if (moduleId === "prompt") {
+    const workbench = $("#promptWorkbench");
+    if (isAheadOfViewport(workbench)) return { label: "下一頁 · 輸出設定", target: workbench };
+    const provider = getProviderTarget();
+    const label = provider === "Suno" ? "下一頁 · Suno（插件可用）" : `下一頁 · ${provider}`;
+    return { label, external: true };
+  }
+  return null;
 }
 
 function updateFloatingJump() {
@@ -520,22 +563,43 @@ function updateFloatingJump() {
     button.hidden = true;
     return;
   }
-  const panels = getActiveStackPanels();
-  if (panels.length < 2) {
-    button.hidden = true;
-    return;
-  }
-  const target = getNextPanelTarget();
-  button.hidden = !target;
-  if (target) {
-    const label = target.querySelector("h3")?.textContent.replace(/\s+\?/g, "").trim() || "下一頁";
-    button.textContent = target === panels[0] ? "回到本頁開頭" : `下一頁 · ${label}`;
-  }
+  const action = getWorkflowJumpAction();
+  button.hidden = !action;
+  button.textContent = action?.label || "下一頁";
+  button.title = action?.external && getProviderTarget() === "Suno"
+    ? "會打開 Suno。Suno 頁面右下角 M 插件可以一起查看四個系統筆記。"
+    : "";
 }
 
 function jumpToNextPanel() {
-  const target = getNextPanelTarget();
-  if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  const action = getWorkflowJumpAction();
+  if (!action) return;
+  if (action.module) {
+    openModule(action.module);
+    return;
+  }
+  if (action.external) {
+    openTargetProvider();
+    return;
+  }
+  action.target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(updateFloatingJump, 260);
+}
+
+function getProviderTarget() {
+  return $("#providerName")?.value || "Suno";
+}
+
+function openTargetProvider() {
+  const provider = getProviderTarget();
+  const url = PROVIDER_LINKS[provider];
+  if (!url) {
+    copyPrompt();
+    toast("提示詞已準備好，可貼到你選的 AI 音樂工具。");
+    return;
+  }
+  window.open(url, "_blank", "noopener");
+  toast(provider === "Suno" ? "已打開 Suno。右下角 M 插件可同步查看系統筆記。" : `已打開 ${provider}。`);
 }
 
 function returnToPrompt() {
@@ -596,7 +660,9 @@ function renderChoiceGroups() {
   renderChoiceGroup("#lyricStyleChoices", "#lyricStyle", CHOICES.lyricStyle);
   renderChoiceGroup("#songStructureChoices", "#songStructure", CHOICES.songStructure);
   renderChoiceGroup("#promptFormatChoices", "#promptFormat", CHOICES.promptFormat);
+  renderChoiceGroup("#providerChoices", "#providerName", CHOICES.providerTarget);
   renderChoiceGroup("#providerModeChoices", "#providerMode", CHOICES.providerMode);
+  renderChoiceGroup("#negativePromptChoices", "#negativePrompt", CHOICES.negativePrompt);
 }
 
 function renderChoiceGroup(containerSelector, inputSelector, choices) {
@@ -896,23 +962,36 @@ function analyzeAudioBuffer(buffer) {
   const duration = buffer.duration;
   const windowSize = Math.floor(sampleRate * 0.18);
   const hop = Math.floor(sampleRate * 0.11);
+  const rmsValues = [];
   const rawNotes = [];
 
   for (let start = 0; start + windowSize < data.length; start += hop) {
     const slice = data.subarray(start, start + windowSize);
+    rmsValues.push(rootMeanSquare(slice));
+  }
+  const sortedRms = rmsValues.slice().sort((a, b) => a - b);
+  const noiseHint = sortedRms[Math.floor(sortedRms.length * 0.35)] || 0;
+  const peakHint = sortedRms[sortedRms.length - 1] || 0;
+  const dynamicFloor = Math.min(Math.max(noiseHint * 1.35, peakHint * 0.055), peakHint * 0.22);
+  const rmsFloor = Math.max(0.0035, dynamicFloor || 0);
+
+  for (let start = 0; start + windowSize < data.length; start += hop) {
+    const slice = data.subarray(start, start + windowSize);
     const rms = rootMeanSquare(slice);
-    if (rms < 0.016) continue;
-    const pitch = detectPitch(slice, sampleRate);
-    if (!pitch || pitch < 65 || pitch > 1200) continue;
+    if (rms < rmsFloor) continue;
+    const detected = detectPitch(slice, sampleRate);
+    if (!detected) continue;
+    const pitch = detected.frequency;
+    if (!pitch || pitch < 55 || pitch > 1200) continue;
     const midi = Math.round(69 + 12 * Math.log2(pitch / 440));
     const time = start / sampleRate;
-    rawNotes.push({ midi, pitch, time, duration: hop / sampleRate, rms });
+    rawNotes.push({ midi, pitch, time, duration: hop / sampleRate, rms, confidence: detected.confidence });
   }
 
   const notes = mergeNotes(rawNotes);
   const bpm = estimateTempo(data, sampleRate, duration, notes);
   const key = inferKey(notes);
-  return { notes, bpm, key, duration };
+  return { notes, bpm, key, duration, rmsFloor };
 }
 
 function getMonoData(buffer) {
@@ -936,21 +1015,39 @@ function detectPitch(samples, sampleRate) {
   const size = samples.length;
   let bestOffset = -1;
   let bestCorrelation = 0;
+  const correlations = new Map();
+  let mean = 0;
+  for (let i = 0; i < size; i += 1) mean += samples[i];
+  mean /= size;
   const minOffset = Math.floor(sampleRate / 900);
-  const maxOffset = Math.floor(sampleRate / 70);
+  const maxOffset = Math.floor(sampleRate / 55);
   for (let offset = minOffset; offset <= maxOffset; offset += 1) {
     let correlation = 0;
+    let energyA = 0;
+    let energyB = 0;
     for (let i = 0; i < size - offset; i += 1) {
-      correlation += samples[i] * samples[i + offset];
+      const a = samples[i] - mean;
+      const b = samples[i + offset] - mean;
+      correlation += a * b;
+      energyA += a * a;
+      energyB += b * b;
     }
-    correlation /= size - offset;
+    correlation /= Math.sqrt(energyA * energyB) || 1;
+    correlations.set(offset, correlation);
     if (correlation > bestCorrelation) {
       bestCorrelation = correlation;
       bestOffset = offset;
     }
   }
-  if (bestCorrelation < 0.012 || bestOffset < 0) return null;
-  return sampleRate / bestOffset;
+  if (bestCorrelation < 0.28 || bestOffset < 0) return null;
+  while (bestOffset / 2 >= minOffset) {
+    const halfOffset = Math.round(bestOffset / 2);
+    const halfCorrelation = correlations.get(halfOffset) || 0;
+    if (halfCorrelation < bestCorrelation * 0.88) break;
+    bestOffset = halfOffset;
+    bestCorrelation = halfCorrelation;
+  }
+  return { frequency: sampleRate / bestOffset, confidence: bestCorrelation };
 }
 
 function mergeNotes(rawNotes) {
@@ -968,7 +1065,7 @@ function mergeNotes(rawNotes) {
     }
   }
   return merged
-    .filter((note) => note.duration > 0.12)
+    .filter((note) => note.duration > 0.075)
     .slice(0, 80)
     .map((note, index) => ({
       ...note,
@@ -1050,7 +1147,7 @@ function updateMelodySummary(analysis) {
   if (note) {
     note.textContent = hasNotes
       ? ""
-      : "旋律太弱或背景噪聲太高；建議靠近麥克風，單聲部哼唱 10 秒以上。";
+      : "暫時沒有抓到穩定音高；這常見於錄音環境、哼唱泛音太少或起音太軟，不一定是你唱太小。可以靠近麥克風、單聲部哼唱 8 秒以上，或用進階簡譜先補旋律。";
   }
 }
 
@@ -2233,7 +2330,7 @@ function renderPromptNotes() {
       <h3>靈感 <small>${escapeHtml(idea ? formatDateTime(idea.updatedAt || idea.createdAt) : "空")}</small></h3>
       <div class="summary-block is-clickable" data-summary-jump="inspiration" data-summary-selector="#ideaList">
         <span>最後瀏覽 / 選中的原文</span>
-        <strong>${escapeHtml(idea ? idea.text.slice(0, 88) : "尚未加入靈感")}</strong>
+        <strong>${escapeHtml(idea ? idea.text : "尚未加入靈感")}</strong>
       </div>
       <div class="summary-block is-clickable" data-summary-jump="inspiration" data-summary-selector="#keywordBank">
         <span>關鍵詞</span>
@@ -2362,13 +2459,14 @@ function buildPrompt(format) {
   }
 
   if (format === "compact") {
-    return `${projectTitle}: ${language}, ${dialect}, ${payload.theme}. Emotion: ${mood}. Viewpoint: ${narrator}. Style: ${style}. Structure: ${structure}. Melody: ${melody}. Chords: ${chordLine}. Drums: ${drumTitle}. Keywords: ${keywords.join(", ")}. Avoid: ${payload.negativePrompt}.`;
+    return `${projectTitle} for ${payload.provider}: ${language}, ${dialect}, ${payload.theme}. Emotion: ${mood}. Viewpoint: ${narrator}. Style: ${style}. Structure: ${structure}. Melody: ${melody}. Chords: ${chordLine}. Drums: ${drumTitle}. Keywords: ${keywords.join(", ")}. Avoid: ${payload.negativePrompt}.`;
   }
 
   const lyricBlock = lyrics ? `\nLyrics draft:\n${lyrics}` : "";
   return `Create a complete AI-generated song called "${projectTitle}".
 
 Core concept:
+- Target platform: ${payload.provider} (${payload.delivery})
 - Language: ${language}
 - Pronunciation flavor: ${dialect}
 - Theme: ${payload.theme}

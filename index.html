@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MotifLab - AI 音樂創作工作台</title>
-    <link rel="stylesheet" href="styles.css?v=20260530-ui13" />
+    <link rel="stylesheet" href="styles.css?v=20260530-ui14" />
   </head>
   <body>
     <div class="app-shell">
@@ -350,7 +350,7 @@
             </div>
 
             <div class="prompt-notes-grid interactive-summary" id="promptSystemNotes" aria-label="各系統結果筆記"></div>
-            <div class="prompt-layout">
+            <div class="prompt-layout" id="promptWorkbench">
               <div class="prompt-main">
                 <div class="prompt-options">
                   <section class="tool-panel">
@@ -360,10 +360,12 @@
                   </section>
                   <section class="tool-panel">
                     <h3>AI 音樂工具接入</h3>
+                    <label>目標平台</label>
+                    <input id="providerName" type="hidden" value="Suno" />
+                    <div class="choice-grid mini provider-grid" id="providerChoices"></div>
+                    <label>使用方式</label>
                     <input id="providerMode" type="hidden" value="manual" />
                     <div class="choice-grid" id="providerModeChoices"></div>
-                    <label for="providerName">目標平台</label>
-                    <input id="providerName" type="text" value="Gemini Lyria / ElevenLabs Music / Suno 手動貼上" />
                     <div class="api-note">
                       <strong>API key 是什麼？</strong>
                       <p>它像「你的 AI 服務鑰匙和計費卡」。前端不能直接放這把鑰匙，正式接入時要放在後端，由後端代替前端去請求音樂生成服務。</p>
@@ -371,8 +373,9 @@
                   </section>
                   <section class="tool-panel">
                     <h3>限制條件</h3>
-                    <label for="negativePrompt">避免元素 <span class="tip" data-tip="告訴 AI 不要做什麼。例如不要雜訊、不要太多混響。">?</span></label>
-                    <input id="negativePrompt" type="text" value="低清晰度人聲、過度混響、雜訊、突兀轉調" />
+                    <label>避免元素 <span class="tip" data-tip="告訴 AI 不要做什麼。例如不要雜訊、不要太多混響。">?</span></label>
+                    <input id="negativePrompt" type="hidden" value="低清晰度人聲、雜訊、突兀轉調、過度混響、過多樂器" />
+                    <div class="choice-grid" id="negativePromptChoices"></div>
                     <div class="action-row">
                       <button id="generatePromptButton" class="primary-action" type="button">
                         <span aria-hidden="true">→</span>更新提示詞
@@ -403,6 +406,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <button class="floating-jump" id="floatingJumpButton" type="button" hidden>下一頁</button>
     <button class="floating-return" id="returnPromptButton" type="button" hidden>返回提示詞</button>
-    <script src="app.js?v=20260530-ui13"></script>
+    <script src="app.js?v=20260530-ui14"></script>
   </body>
 </html>
