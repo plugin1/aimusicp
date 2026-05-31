@@ -6,6 +6,8 @@ const MOTIFLAB_DEFAULT = {
   prompt: "提示詞：尚未生成"
 };
 
+const MOTIFLAB_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260531-ui24";
+
 const MOTIFLAB_TABS = [
   ["humming", "哼唱", "聲音線", "#e7a7bd"],
   ["arrangement", "編曲", "聲音線", "#c8a074"],
@@ -54,6 +56,7 @@ function renderMotifLab() {
           <button class="motiflab-primary" type="button" data-copy-current>複製本段</button>
           <button class="motiflab-secondary" type="button" data-copy-all>複製全部</button>
           <button class="motiflab-secondary" type="button" data-fill-focused>填入當前輸入框</button>
+          <button class="motiflab-secondary" type="button" data-open-web>打開網頁版</button>
         </div>
         <hr />
         <div class="motiflab-field">
@@ -64,7 +67,7 @@ function renderMotifLab() {
           <button class="motiflab-secondary" type="button" data-import>匯入</button>
           <button class="motiflab-secondary" type="button" data-reset>重置</button>
         </div>
-        <p class="motiflab-note">資料只存在本機瀏覽器，不會自動讀取 Suno 帳號內容。正式生成前，可以把各系統結論合併後填入 Suno 輸入框。</p>
+        <p class="motiflab-note">目前插件是本機小抄：不會自動讀取 Suno 帳號內容，也不會替你花費生成額度。網頁版提示詞系統點「複製插件資料」後，貼到這裡匯入；正式生成前，再把需要的段落填入 Suno。</p>
         <div class="motiflab-toast" data-toast></div>
       </div>
     </section>
@@ -88,6 +91,7 @@ function bindMotifLab(root) {
   root.querySelector("[data-copy-current]").addEventListener("click", () => copyText(motiflabState[motiflabActive], root, "已複製本段"));
   root.querySelector("[data-copy-all]").addEventListener("click", () => copyText(buildAllText(), root, "已複製全部"));
   root.querySelector("[data-fill-focused]").addEventListener("click", () => fillFocused(root));
+  root.querySelector("[data-open-web]").addEventListener("click", () => window.open(MOTIFLAB_WEB_URL, "_blank", "noopener"));
   root.querySelector("[data-import]").addEventListener("click", () => importData(root));
   root.querySelector("[data-reset]").addEventListener("click", async () => {
     motiflabState = { ...MOTIFLAB_DEFAULT };

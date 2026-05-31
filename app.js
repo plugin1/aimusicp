@@ -7,6 +7,31 @@ const ICONS = {
   loop: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 2l4 4-4 4" /><path d="M3 11V9a3 3 0 0 1 3-3h15" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a3 3 0 0 1-3 3H3" /></svg>`
 };
 
+const STORAGE_KEYS = {
+  legacyIdeas: "motiflab-state",
+  workspace: "motiflab-workspace-v1",
+  slots: "motiflab-save-slots-v1"
+};
+
+const FIELD_DEFAULTS = {
+  projectTitle: "未命名歌曲",
+  targetLang: "中文",
+  lyricStyle: "口語、親密、克制",
+  songStructure: "Verse - Pre Chorus - Chorus - Verse - Chorus - Bridge - Chorus",
+  themeInput: "",
+  narratorInput: "第一人稱，像把心事直接唱給某個人",
+  rhymeInput: "",
+  negativePrompt: "低清晰度人聲、雜訊、突兀轉調、過度混響、過多樂器",
+  providerMode: "manual",
+  providerName: "Suno",
+  promptFormat: "professional",
+  lyricsDraft: "",
+  dialectInput: "國語發音",
+  notationInput: ""
+};
+
+const WORKSPACE_FIELDS = Object.keys(FIELD_DEFAULTS);
+
 const EMOTIONS = [
   { id: "joy", name: "喜悦", en: "Joy", plain: "生命狀態全然舒展，靈魂在當下體驗到純粹的圓滿。", color: "#df6a5f" },
   { id: "excitement", name: "興奮", en: "Excitement", plain: "內在能量高度滿溢，迫不及待要投入即將發生的生命體驗。", color: "#e05a9d" },
@@ -469,13 +494,16 @@ let recordedChunks = [];
 let recordingAnalyser;
 let recordingSource;
 let recordingAnimationId;
+let autosaveTimer;
+let restoringWorkspace = false;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function init() {
   bindEvents();
-  restoreIdeas();
+  const restoredWorkspace = restoreWorkspace();
+  if (!restoredWorkspace) restoreIdeas();
   renderChoiceGroups();
   renderEmotionPicker("#moodPicker", state.selectedMoods, "idea");
   renderEmotionPicker("#lyricMoodPicker", state.lyricMoods, "lyrics");
@@ -487,13 +515,13 @@ function init() {
   renderDrumCards();
   renderIdeas();
   renderKeywords();
-  drawEmptyWaveform();
-  drawEmptyScore();
+  renderRestoredAudioState();
   recommendLyrics();
   updatePrompt();
   updateProgress();
   updateCompletionButtons();
   setupPanelJumps();
+  renderSaveDock();
   window.addEventListener("scroll", updateFloatingJump, { passive: true });
   window.addEventListener("resize", updateFloatingJump);
   $("#floatingJumpButton").addEventListener("click", jumpToNextPanel);
@@ -539,6 +567,10 @@ function bindEvents() {
   $("#generatePromptButton").addEventListener("click", updatePrompt);
   $("#copyPromptButton").addEventListener("click", copyPrompt);
   $("#copyPluginDataButton").addEventListener("click", copyPluginData);
+  $("#continueProjectButton")?.addEventListener("click", continueLastProject);
+  $("#newProjectButton")?.addEventListener("click", startNewProject);
+  $$("[data-save-slot]").forEach((button) => button.addEventListener("click", () => saveWorkspaceSlot(button.dataset.saveSlot)));
+  $$("[data-load-slot]").forEach((button) => button.addEventListener("click", () => loadWorkspaceSlot(button.dataset.loadSlot)));
 
   ["projectTitle", "targetLang", "lyricStyle", "songStructure", "themeInput", "narratorInput", "rhymeInput", "negativePrompt", "providerMode", "providerName", "promptFormat", "lyricsDraft", "dialectInput"].forEach((id) => {
     const element = document.getElementById(id);
@@ -551,12 +583,14 @@ function bindEvents() {
       updateCompletionButtons();
       updateProgress();
       updateFloatingJump();
+      queueWorkspaceAutosave();
     });
   });
   $("#promptOutput").addEventListener("input", () => {
     state.promptDone = false;
     updateCompletionButtons();
     updateFloatingJump();
+    queueWorkspaceAutosave();
   });
 }
 
@@ -573,6 +607,7 @@ function openModule(moduleId) {
   const activePanel = document.getElementById(moduleId);
   if (activePanel) window.scrollTo({ top: 0, behavior: "smooth" });
   updateFloatingJump();
+  queueWorkspaceAutosave();
 }
 
 function setupPanelJumps() {
@@ -875,6 +910,7 @@ function toggleLyricsDone() {
   state.lyricsDone = !state.lyricsDone;
   updateCompletionButtons();
   updateFloatingJump();
+  queueWorkspaceAutosave();
   toast(state.lyricsDone ? "歌詞草稿已標記完成" : "歌詞草稿已取消完成");
 }
 
@@ -882,6 +918,7 @@ function togglePromptDone() {
   state.promptDone = !state.promptDone;
   updateCompletionButtons();
   updateFloatingJump();
+  queueWorkspaceAutosave();
   toast(state.promptDone ? "提示詞已標記檢查完成" : "提示詞已取消完成");
 }
 
@@ -1060,7 +1097,7 @@ async function playInputAudio() {
   const source = ctx.createBufferSource();
   source.buffer = state.sourceBuffer;
   const gain = ctx.createGain();
-  gain.gain.value = 0.95;
+  gain.gain.value = getBufferSuggestedGain(state.sourceBuffer, 0.13);
   source.connect(gain).connect(getAudioDestination());
   source.start();
   state.audioNodes.push(source);
@@ -1186,6 +1223,22 @@ function rootMeanSquare(samples) {
   let sum = 0;
   for (let i = 0; i < samples.length; i += 1) sum += samples[i] * samples[i];
   return Math.sqrt(sum / samples.length);
+}
+
+function getBufferSuggestedGain(buffer, targetRms = 0.16) {
+  if (!buffer) return 1;
+  const data = getMonoData(buffer);
+  const step = Math.max(1, Math.floor(data.length / 14000));
+  let sum = 0;
+  let count = 0;
+  for (let index = 0; index < data.length; index += step) {
+    const value = data[index] || 0;
+    sum += value * value;
+    count += 1;
+  }
+  const rms = Math.sqrt(sum / Math.max(count, 1));
+  if (!rms) return 1.2;
+  return clamp(targetRms / rms, 0.92, 3.2);
 }
 
 function detectPitch(samples, sampleRate) {
@@ -2146,11 +2199,11 @@ function persistIdeas() {
     deletedKeywords: [...state.deletedKeywords],
     keywords: [...state.keywordMap.entries()].map(([word, meta]) => [word, { count: meta.count, moods: [...meta.moods] }])
   };
-  localStorage.setItem("motiflab-state", JSON.stringify(payload));
+  localStorage.setItem(STORAGE_KEYS.legacyIdeas, JSON.stringify(payload));
 }
 
 function restoreIdeas() {
-  const raw = localStorage.getItem("motiflab-state");
+  const raw = localStorage.getItem(STORAGE_KEYS.legacyIdeas);
   if (!raw) return;
   try {
     const payload = JSON.parse(raw);
@@ -2168,6 +2221,302 @@ function restoreIdeas() {
   } catch (error) {
     console.warn("Failed to restore local state", error);
   }
+}
+
+function buildWorkspaceSnapshot() {
+  const fields = {};
+  WORKSPACE_FIELDS.forEach((id) => {
+    const element = document.getElementById(id);
+    fields[id] = element ? element.value : FIELD_DEFAULTS[id];
+  });
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    activeModule: $(".module-panel.active")?.id || "humming",
+    fields,
+    ideas: state.ideas,
+    selectedIdeaIds: [...state.selectedIdeaIds],
+    selectedLyricKeywords: [...state.selectedLyricKeywords],
+    selectedReferenceWords: [...state.selectedReferenceWords],
+    deletedKeywords: [...state.deletedKeywords],
+    selectedMoods: [...state.selectedMoods],
+    lyricMoods: [...state.lyricMoods],
+    activeIdeaFilters: [...state.activeIdeaFilters],
+    lastIdeaId: state.lastIdeaId,
+    analysis: serializeAnalysis(state.analysis),
+    sourceName: state.sourceName,
+    selectedChord: serializeArrangementChoice(state.selectedChord),
+    selectedDrum: serializeArrangementChoice(state.selectedDrum),
+    arrangementStep: state.arrangementStep,
+    arrangementAuditioned: state.arrangementAuditioned,
+    hummingStep: state.hummingStep,
+    inspirationStep: state.inspirationStep,
+    lyricsStep: state.lyricsStep,
+    lyricsDone: state.lyricsDone,
+    promptStep: state.promptStep,
+    promptDone: state.promptDone
+  };
+}
+
+function serializeAnalysis(analysis) {
+  if (!analysis?.notes?.length) return null;
+  return {
+    bpm: analysis.bpm,
+    key: analysis.key,
+    duration: analysis.duration,
+    notes: analysis.notes.slice(0, 96).map((note, index) => ({
+      midi: note.midi,
+      time: note.time,
+      duration: note.duration,
+      weight: note.weight,
+      index,
+      name: note.name || midiToName(note.midi),
+      solfege: note.solfege || SOLFEGE[((note.midi % 12) + 12) % 12]
+    }))
+  };
+}
+
+function serializeArrangementChoice(choice) {
+  if (!choice) return null;
+  if (choice.empty) return { id: choice.id, empty: true };
+  return { id: choice.id };
+}
+
+function persistWorkspace() {
+  if (restoringWorkspace || !document.getElementById("projectTitle")) return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.workspace, JSON.stringify(buildWorkspaceSnapshot()));
+    renderSaveDock();
+  } catch (error) {
+    console.warn("Failed to autosave workspace", error);
+  }
+}
+
+function queueWorkspaceAutosave() {
+  if (restoringWorkspace) return;
+  window.clearTimeout(autosaveTimer);
+  autosaveTimer = window.setTimeout(persistWorkspace, 160);
+}
+
+function restoreWorkspace() {
+  const raw = localStorage.getItem(STORAGE_KEYS.workspace);
+  if (!raw) return false;
+  try {
+    applyWorkspaceSnapshot(JSON.parse(raw), { silent: true });
+    return true;
+  } catch (error) {
+    console.warn("Failed to restore workspace", error);
+    return false;
+  }
+}
+
+function applyWorkspaceSnapshot(snapshot, { silent = false } = {}) {
+  if (!snapshot || typeof snapshot !== "object") return false;
+  restoringWorkspace = true;
+  WORKSPACE_FIELDS.forEach((id) => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.value = snapshot.fields?.[id] ?? FIELD_DEFAULTS[id];
+  });
+  state.ideas = (snapshot.ideas || []).map((idea) => ({
+    ...idea,
+    moods: (idea.moods || (idea.mood ? [idea.mood] : [])).map((mood) => mood === LEGACY_TRIUMPH_LABEL ? "成就感" : mood),
+    keywords: Array.isArray(idea.keywords) ? idea.keywords : extractKeywords(idea.text || ""),
+    reviewed: Boolean(idea.reviewed),
+    updatedAt: idea.updatedAt || idea.createdAt,
+    history: idea.history || []
+  }));
+  state.selectedIdeaIds = new Set((snapshot.selectedIdeaIds || []).filter((id) => state.ideas.some((idea) => idea.id === id && isIdeaReviewed(idea))));
+  state.selectedLyricKeywords = new Set(snapshot.selectedLyricKeywords || []);
+  state.selectedReferenceWords = new Set(snapshot.selectedReferenceWords || []);
+  state.deletedKeywords = new Set(snapshot.deletedKeywords || []);
+  state.selectedMoods = new Set(snapshot.selectedMoods || []);
+  state.lyricMoods = new Set(snapshot.lyricMoods || []);
+  state.activeIdeaFilters = new Set(snapshot.activeIdeaFilters || []);
+  state.lastIdeaId = snapshot.lastIdeaId || "";
+  state.analysis = hydrateAnalysis(snapshot.analysis);
+  state.sourceBuffer = null;
+  state.sourceName = snapshot.sourceName || "";
+  state.selectedChord = restoreChordChoice(snapshot.selectedChord);
+  state.selectedDrum = restoreDrumChoice(snapshot.selectedDrum);
+  state.arrangementStep = snapshot.arrangementStep || "top";
+  state.arrangementAuditioned = Boolean(snapshot.arrangementAuditioned);
+  state.hummingStep = snapshot.hummingStep || "input";
+  state.inspirationStep = snapshot.inspirationStep || "editor";
+  state.lyricsStep = snapshot.lyricsStep || "top";
+  state.lyricsDone = Boolean(snapshot.lyricsDone);
+  state.promptStep = snapshot.promptStep || "notes";
+  state.promptDone = Boolean(snapshot.promptDone);
+  rebuildKeywordMap();
+  restoringWorkspace = false;
+  if (!silent) {
+    refreshWorkspaceUI();
+    toast("已讀取存檔");
+  }
+  return true;
+}
+
+function hydrateAnalysis(analysis) {
+  if (!analysis?.notes?.length) return null;
+  const notes = analysis.notes.map((note, index) => ({
+    midi: Number(note.midi),
+    time: Number(note.time) || 0,
+    duration: Number(note.duration) || 0.32,
+    weight: Number(note.weight) || 0.7,
+    index,
+    name: note.name || midiToName(Number(note.midi)),
+    solfege: note.solfege || SOLFEGE[((Number(note.midi) % 12) + 12) % 12]
+  })).filter((note) => Number.isFinite(note.midi));
+  if (!notes.length) return null;
+  return {
+    bpm: Number.isFinite(Number(analysis.bpm)) ? Number(analysis.bpm) : null,
+    key: analysis.key || "",
+    duration: Number.isFinite(Number(analysis.duration)) ? Number(analysis.duration) : Math.max(notes.at(-1).time + notes.at(-1).duration, 1),
+    notes
+  };
+}
+
+function restoreChordChoice(choice) {
+  if (!choice) return null;
+  if (choice.empty || choice.id === EMPTY_CHORD.id) return EMPTY_CHORD;
+  return findChordPreset(choice.id) || null;
+}
+
+function restoreDrumChoice(choice) {
+  if (!choice) return null;
+  if (choice.empty || choice.id === EMPTY_DRUM.id) return EMPTY_DRUM;
+  return DRUM_PRESETS.find((preset) => preset.id === choice.id) || null;
+}
+
+function refreshWorkspaceUI() {
+  renderChoiceGroups();
+  renderEmotionPicker("#moodPicker", state.selectedMoods, "idea");
+  renderEmotionPicker("#lyricMoodPicker", state.lyricMoods, "lyrics");
+  renderIdeaFilter();
+  applyEmotionTheme();
+  applyArrangementTheme();
+  applyInspirationPanelTheme();
+  renderRestoredAudioState();
+  renderChordCards();
+  renderDrumCards();
+  renderIdeas();
+  renderKeywords();
+  recommendLyrics();
+  updatePrompt();
+  updateProgress();
+  updateCompletionButtons();
+  updateFloatingJump();
+  renderSaveDock();
+}
+
+function renderRestoredAudioState() {
+  if (state.analysis?.notes?.length) {
+    const duration = state.sourceBuffer?.duration || state.analysis.duration;
+    $("#tempoMetric").textContent = state.analysis.bpm ? Math.round(state.analysis.bpm) : "--";
+    $("#keyMetric").textContent = formatKeyLabel(state.analysis.key);
+    $("#durationMetric").textContent = formatTime(duration);
+    $("#noteCount").textContent = state.analysis.notes.length;
+    updateMelodySummary(state.analysis);
+    renderScore(state.analysis);
+  } else {
+    drawEmptyScore();
+  }
+  if (state.sourceBuffer) {
+    renderWaveform(state.sourceBuffer);
+  } else {
+    drawEmptyWaveform();
+    $("#playInputButton").disabled = true;
+    $("#analyzeButton").disabled = true;
+    $("#fileLabel").textContent = state.sourceName ? `${state.sourceName}（需重新放入原音）` : "上傳音頻";
+  }
+}
+
+function getSaveSlots() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.slots) || "{}") || {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function setSaveSlots(slots) {
+  localStorage.setItem(STORAGE_KEYS.slots, JSON.stringify(slots));
+}
+
+function renderSaveDock() {
+  const status = $("#saveSlotStatus");
+  if (status) {
+    const raw = localStorage.getItem(STORAGE_KEYS.workspace);
+    let savedAt = "";
+    try {
+      savedAt = raw ? JSON.parse(raw)?.savedAt : "";
+    } catch (error) {
+      savedAt = "";
+    }
+    status.textContent = savedAt ? `自動 ${formatDateTime(savedAt)}` : "本機保存";
+  }
+  const slots = getSaveSlots();
+  $$("[data-load-slot]").forEach((button) => {
+    const slot = slots[button.dataset.loadSlot];
+    button.classList.toggle("has-save", Boolean(slot));
+    button.title = slot ? `${slot.title || "未命名歌曲"} · ${formatDateTime(slot.savedAt)}` : "這個槽還沒有存檔";
+  });
+}
+
+function continueLastProject() {
+  const raw = localStorage.getItem(STORAGE_KEYS.workspace);
+  if (!raw) {
+    toast("還沒有上次進度，可以先新開一檔");
+    return;
+  }
+  try {
+    const snapshot = JSON.parse(raw);
+    applyWorkspaceSnapshot(snapshot);
+    openModule(snapshot.activeModule || "humming");
+  } catch (error) {
+    toast("上次進度讀取失敗，可以新開一檔");
+  }
+}
+
+function startNewProject() {
+  const ok = window.confirm("要開新檔嗎？目前進度會留在手動存檔槽；自動進度會被清空。");
+  if (!ok) return;
+  stopScheduledAudio({ silent: true });
+  localStorage.removeItem(STORAGE_KEYS.workspace);
+  localStorage.removeItem(STORAGE_KEYS.legacyIdeas);
+  applyWorkspaceSnapshot({ fields: FIELD_DEFAULTS, ideas: [] }, { silent: true });
+  state.selectedChord = null;
+  state.selectedDrum = null;
+  state.sourceName = "";
+  state.sourceBuffer = null;
+  state.analysis = null;
+  document.body.classList.remove("in-app");
+  refreshWorkspaceUI();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  toast("已開新檔");
+}
+
+function saveWorkspaceSlot(slotId) {
+  const slots = getSaveSlots();
+  const snapshot = buildWorkspaceSnapshot();
+  slots[slotId] = {
+    title: snapshot.fields.projectTitle || "未命名歌曲",
+    savedAt: snapshot.savedAt,
+    snapshot
+  };
+  setSaveSlots(slots);
+  renderSaveDock();
+  toast(`已存入檔案 ${slotId}`);
+}
+
+function loadWorkspaceSlot(slotId) {
+  const slot = getSaveSlots()[slotId];
+  if (!slot?.snapshot) {
+    toast(`檔案 ${slotId} 還沒有內容`);
+    return;
+  }
+  applyWorkspaceSnapshot(slot.snapshot);
+  openModule(slot.snapshot.activeModule || "humming");
 }
 
 function renderIdeaFilter() {
@@ -2198,6 +2547,7 @@ function renderIdeaFilter() {
       renderIdeaFilter();
       renderIdeas();
       applyInspirationPanelTheme();
+      queueWorkspaceAutosave();
     });
   });
 }
@@ -3052,16 +3402,14 @@ async function playMelodyChordPreset(preset) {
   const beat = 60 / (preset.bpm || state.analysis.bpm || 96);
   const chordSpan = beat * 4;
   preset.notes.forEach((notes, index) => {
-    scheduleChordVoicing(ctx, notes, now + index * chordSpan, chordSpan, 0.1);
+    scheduleChordVoicing(ctx, notes, now + index * chordSpan, chordSpan, 0.075, -0.12);
   });
-  scheduleMelodyMotif(ctx, now, {
+  scheduleHumTrack(ctx, now, {
     bpm: preset.bpm,
     targetDuration: chordSpan * preset.notes.length,
-    level: 0.2,
-    wave: "triangle",
-    minDuration: beat * 0.32
+    level: state.sourceBuffer ? 1.2 : 0.34
   });
-  setAudioState(`正在播放：${preset.title}。這組和弦是按目前旋律即時生成的試聽版。`);
+  setAudioState(`正在播放：${preset.title}。旋律會作為獨立一軌疊在和弦上。`);
 }
 
 async function playDrumPreset(preset) {
@@ -3101,15 +3449,22 @@ async function playArrangementCombo({ loop = false, includeMelody = false } = {}
   stopScheduledAudio({ silent: true });
   state.isArrangementLooping = loop;
   const startTime = ctx.currentTime + 0.05;
-  scheduleArrangementCycle(ctx, startTime);
-  if (includeMelody) scheduleMelodyMotif(ctx, startTime, { level: 0.18, wave: "triangle" });
+  const timing = getArrangementTiming();
+  scheduleArrangementCycle(ctx, startTime, { accompanimentLevel: includeMelody ? 0.74 : 1 });
+  if (includeMelody) {
+    scheduleHumTrack(ctx, startTime, {
+      bpm: timing.bpm,
+      targetDuration: timing.cycleDuration,
+      level: state.sourceBuffer ? 1.22 : 0.36
+    });
+  }
   updateGlobalPlayer();
   const mode = includeMelody ? "播放旋律加編曲" : (loop ? "循環播放" : "播放一次");
   const parts = [
     hasPlayableChord() ? state.selectedChord.title : "",
     hasPlayableDrum() ? state.selectedDrum.title : ""
   ].filter(Boolean).join(" + ");
-  setAudioState(`${mode}：${parts}。`);
+  setAudioState(`${mode}：${parts}。${includeMelody ? "旋律會用獨立音軌疊上去，伴奏已稍微壓低。" : ""}`);
   updateFloatingJump();
 }
 
@@ -3121,17 +3476,23 @@ function toggleArrangementLoop() {
   playArrangementCombo({ loop: true });
 }
 
-function scheduleArrangementCycle(ctx, startTime) {
+function getArrangementTiming() {
   const chord = hasPlayableChord() ? state.selectedChord : null;
   const drum = hasPlayableDrum() ? state.selectedDrum : null;
-  if (!chord && !drum) return;
   const bpm = drum?.bpm || chord?.bpm || 96;
   const beat = 60 / bpm;
   const chordSpan = beat * 4;
   const cycleBars = chord?.notes?.length || 4;
+  return { chord, drum, bpm, beat, chordSpan, cycleBars, cycleDuration: cycleBars * chordSpan };
+}
+
+function scheduleArrangementCycle(ctx, startTime, options = {}) {
+  const { chord, drum, beat, chordSpan, cycleBars, cycleDuration } = getArrangementTiming();
+  const level = options.accompanimentLevel ?? 1;
+  if (!chord && !drum) return;
   if (chord) {
     chord.notes.forEach((notes, index) => {
-      scheduleChordVoicing(ctx, notes, startTime + index * chordSpan, chordSpan, 0.11);
+      scheduleChordVoicing(ctx, notes, startTime + index * chordSpan, chordSpan, 0.11 * level, -0.12);
     });
   }
   const stepDuration = beat / 4;
@@ -3140,70 +3501,148 @@ function scheduleArrangementCycle(ctx, startTime) {
     for (let index = 0; index < cycleSteps; index += 1) {
       const step = drum.pattern[index % drum.pattern.length];
       const time = startTime + index * stepDuration;
-      if (step === "K") scheduleKick(ctx, time);
-      if (step === "S") scheduleSnare(ctx, time);
-      if (step === "H") scheduleHat(ctx, time);
+      if (step === "K") scheduleKick(ctx, time, level);
+      if (step === "S") scheduleSnare(ctx, time, level);
+      if (step === "H") scheduleHat(ctx, time, level);
     }
   }
-  const cycleDuration = cycleBars * chordSpan;
   if (state.isArrangementLooping) {
     const timer = window.setTimeout(() => {
       if (!state.isArrangementLooping) return;
-      scheduleArrangementCycle(ctx, ctx.currentTime + 0.05);
+      scheduleArrangementCycle(ctx, ctx.currentTime + 0.05, options);
     }, Math.max(400, (cycleDuration - 0.1) * 1000));
     state.audioTimers.push(timer);
   }
 }
 
-function scheduleMelodyMotif(ctx, startTime, options = {}) {
+function scheduleHumTrack(ctx, startTime, options = {}) {
+  if (state.sourceBuffer) {
+    scheduleRecordedHumTrack(ctx, startTime, options);
+    return;
+  }
+  scheduleSynthHumTrack(ctx, startTime, options);
+}
+
+function scheduleRecordedHumTrack(ctx, startTime, options = {}) {
+  const source = ctx.createBufferSource();
+  source.buffer = state.sourceBuffer;
+  const targetDuration = options.targetDuration || state.sourceBuffer.duration;
+  const rawRate = state.sourceBuffer.duration && targetDuration ? state.sourceBuffer.duration / targetDuration : 1;
+  source.playbackRate.value = rawRate >= 0.88 && rawRate <= 1.12 ? rawRate : 1;
+  const gain = ctx.createGain();
+  const compressor = ctx.createDynamicsCompressor();
+  compressor.threshold.value = -30;
+  compressor.knee.value = 18;
+  compressor.ratio.value = 3;
+  compressor.attack.value = 0.008;
+  compressor.release.value = 0.18;
+  const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  if (panner) panner.pan.value = 0.18;
+  const suggested = getBufferSuggestedGain(state.sourceBuffer, 0.18) * (options.level || 1);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.linearRampToValueAtTime(clamp(suggested, 1, 3.4), startTime + 0.08);
+  const naturalDuration = state.sourceBuffer.duration / source.playbackRate.value;
+  const stopAt = startTime + Math.min(naturalDuration, targetDuration ? targetDuration + 1.2 : naturalDuration);
+  gain.gain.setValueAtTime(clamp(suggested, 1, 3.4), Math.max(startTime + 0.1, stopAt - 0.16));
+  gain.gain.linearRampToValueAtTime(0.0001, stopAt);
+  if (panner) source.connect(compressor).connect(gain).connect(panner).connect(getAudioDestination());
+  else source.connect(compressor).connect(gain).connect(getAudioDestination());
+  source.start(startTime);
+  source.stop(stopAt + 0.02);
+  state.audioNodes.push(source);
+}
+
+function scheduleSynthHumTrack(ctx, startTime, options = {}) {
   const analysis = state.analysis;
   if (!analysis?.notes?.length) return;
   const bpm = options.bpm || state.selectedDrum?.bpm || state.selectedChord?.bpm || analysis.bpm || 96;
   const beat = 60 / bpm;
-  const notes = analysis.notes.slice(0, 24);
+  const notes = analysis.notes.slice(0, 32);
   const sourceDuration = Math.max(analysis.duration || notes.at(-1)?.time || 1, 1);
   const targetDuration = options.targetDuration || beat * 8;
   const scale = targetDuration / sourceDuration;
-  notes.forEach((note) => {
-    const start = startTime + note.time * scale;
-    const duration = clamp(note.duration * scale * 1.08, options.minDuration || 0.12, beat * 1.8);
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = options.wave || "triangle";
-    osc.frequency.value = midiToFrequency(note.midi);
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(options.level || 0.2, start + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    osc.connect(gain).connect(getAudioDestination());
-    osc.start(start);
-    osc.stop(start + duration + 0.04);
-    state.audioNodes.push(osc);
+  const endTime = startTime + targetDuration;
+  const main = ctx.createOscillator();
+  const breath = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const breathGain = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+  const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  const vibrato = ctx.createOscillator();
+  const vibratoDepth = ctx.createGain();
+  main.type = "sine";
+  breath.type = "triangle";
+  breath.detune.value = 7;
+  filter.type = "lowpass";
+  filter.frequency.value = 1800;
+  filter.Q.value = 0.5;
+  if (panner) panner.pan.value = 0.18;
+  const level = options.level || 0.34;
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.linearRampToValueAtTime(level, startTime + 0.1);
+  gain.gain.setValueAtTime(level, Math.max(startTime + 0.12, endTime - 0.22));
+  gain.gain.linearRampToValueAtTime(0.0001, endTime);
+  breathGain.gain.value = 0.28;
+  vibrato.frequency.value = 5.2;
+  vibratoDepth.gain.value = 2.6;
+  vibrato.connect(vibratoDepth).connect(main.frequency);
+  notes.forEach((note, index) => {
+    const time = startTime + note.time * scale;
+    const freq = midiToFrequency(note.midi);
+    if (index === 0) {
+      main.frequency.setValueAtTime(freq, startTime);
+      breath.frequency.setValueAtTime(freq * 1.004, startTime);
+    } else {
+      main.frequency.setTargetAtTime(freq, time, 0.035);
+      breath.frequency.setTargetAtTime(freq * 1.004, time, 0.04);
+    }
   });
+  if (panner) main.connect(filter).connect(gain).connect(panner).connect(getAudioDestination());
+  else main.connect(filter).connect(gain).connect(getAudioDestination());
+  if (panner) breath.connect(breathGain).connect(filter);
+  else breath.connect(breathGain).connect(filter);
+  main.start(startTime);
+  breath.start(startTime);
+  vibrato.start(startTime);
+  main.stop(endTime + 0.02);
+  breath.stop(endTime + 0.02);
+  vibrato.stop(endTime + 0.02);
+  state.audioNodes.push(main, breath, vibrato);
 }
 
-function scheduleChordVoicing(ctx, notes, start, duration, level = 0.14) {
+function scheduleMelodyMotif(ctx, startTime, options = {}) {
+  scheduleSynthHumTrack(ctx, startTime, options);
+}
+
+function scheduleChordVoicing(ctx, notes, start, duration, level = 0.14, pan = 0) {
   notes.forEach((midi) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
     osc.type = "triangle";
     osc.frequency.value = midiToFrequency(midi);
     gain.gain.setValueAtTime(0.0001, start);
     gain.gain.exponentialRampToValueAtTime(level, start + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration - 0.04);
-    osc.connect(gain).connect(getAudioDestination());
+    if (panner) {
+      panner.pan.value = pan;
+      osc.connect(gain).connect(panner).connect(getAudioDestination());
+    } else {
+      osc.connect(gain).connect(getAudioDestination());
+    }
     osc.start(start);
     osc.stop(start + duration);
     state.audioNodes.push(osc);
   });
 }
 
-function scheduleKick(ctx, time) {
+function scheduleKick(ctx, time, level = 1) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = "sine";
   osc.frequency.setValueAtTime(120, time);
   osc.frequency.exponentialRampToValueAtTime(48, time + 0.12);
-  gain.gain.setValueAtTime(0.62, time);
+  gain.gain.setValueAtTime(0.62 * level, time);
   gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
   osc.connect(gain).connect(getAudioDestination());
   osc.start(time);
@@ -3211,7 +3650,7 @@ function scheduleKick(ctx, time) {
   state.audioNodes.push(osc);
 }
 
-function scheduleSnare(ctx, time) {
+function scheduleSnare(ctx, time, level = 1) {
   const bufferSize = ctx.sampleRate * 0.18;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -3222,7 +3661,7 @@ function scheduleSnare(ctx, time) {
   filter.type = "bandpass";
   filter.frequency.value = 1800;
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.32, time);
+  gain.gain.setValueAtTime(0.32 * level, time);
   gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
   noise.connect(filter).connect(gain).connect(getAudioDestination());
   noise.start(time);
@@ -3230,7 +3669,7 @@ function scheduleSnare(ctx, time) {
   state.audioNodes.push(noise);
 }
 
-function scheduleHat(ctx, time) {
+function scheduleHat(ctx, time, level = 1) {
   const bufferSize = ctx.sampleRate * 0.05;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -3241,7 +3680,7 @@ function scheduleHat(ctx, time) {
   filter.type = "highpass";
   filter.frequency.value = 6800;
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.14, time);
+  gain.gain.setValueAtTime(0.14 * level, time);
   gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
   noise.connect(filter).connect(gain).connect(getAudioDestination());
   noise.start(time);
@@ -3293,6 +3732,7 @@ function updatePrompt() {
   renderPromptNotes();
   updateCompletionButtons();
   updateProgress();
+  queueWorkspaceAutosave();
 }
 
 function renderPromptNotes() {

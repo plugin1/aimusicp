@@ -200,6 +200,85 @@ textarea:focus {
   display: none;
 }
 
+.home-guide-card,
+.save-dock {
+  position: fixed;
+  z-index: 3;
+  width: min(238px, calc(100vw - 40px));
+  border: 1px solid rgba(17, 17, 17, 0.1);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle, rgba(217, 217, 217, 0.78) 1.5px, transparent 2.5px) 0 0 / 22px 22px,
+    rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 34px rgba(17, 17, 17, 0.07);
+  backdrop-filter: blur(16px);
+}
+
+.home-guide-card {
+  left: clamp(18px, 4vw, 46px);
+  bottom: clamp(22px, 5vw, 48px);
+  padding: 14px;
+}
+
+.home-guide-card strong,
+.save-dock strong {
+  display: block;
+  color: #111111;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.home-guide-card p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.58;
+}
+
+.save-dock {
+  right: clamp(18px, 4vw, 46px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+body.in-app .home-guide-card,
+body.in-app .save-dock {
+  display: none;
+}
+
+.save-dock small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.save-dock button {
+  min-height: 34px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #111111;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.save-dock button:hover,
+.save-dock button.has-save {
+  border-color: #111111;
+  background: #ffffff;
+}
+
+.save-slot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
 .map-title {
   position: static;
   grid-column: 1 / -1;
@@ -2401,7 +2480,8 @@ canvas {
 
 .toast {
   position: fixed;
-  right: 20px;
+  left: 22px;
+  right: auto;
   bottom: 20px;
   max-width: min(420px, calc(100vw - 40px));
   padding: 12px 14px;
@@ -2440,6 +2520,14 @@ canvas {
   .system-map {
     width: min(760px, 100%);
     min-height: min(660px, calc(100vh - 36px));
+  }
+
+  .home-guide-card,
+  .save-dock {
+    position: static;
+    transform: none;
+    width: min(520px, 100%);
+    justify-self: center;
   }
 
   .tool-grid.two,
