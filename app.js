@@ -626,6 +626,7 @@ function jumpToNextPanel() {
   }
   if (action.arrangementStep) {
     state.arrangementStep = action.arrangementStep;
+    updateFloatingJump();
   }
   action.target?.scrollIntoView({ behavior: "smooth", block: "start" });
   if (action.highlightPlay) window.setTimeout(() => flashElement("#playComboButton"), 360);
@@ -2181,12 +2182,19 @@ async function playArrangementCombo({ loop = false } = {}) {
     setAudioState("先選用一組和弦或鼓點，再開始試聽。");
     return;
   }
-  const ctx = await getAudioContext();
+  state.arrangementStep = "top";
+  state.arrangementAuditioned = true;
+  updateFloatingJump();
+  let ctx;
+  try {
+    ctx = await getAudioContext();
+  } catch (error) {
+    setAudioState("瀏覽器暫時無法啟動音訊；選中的編曲已記錄，可以先繼續整理靈感。");
+    return;
+  }
   stopScheduledAudio({ silent: true });
   state.isArrangementLooping = loop;
   scheduleArrangementCycle(ctx, ctx.currentTime + 0.05);
-  state.arrangementStep = "top";
-  state.arrangementAuditioned = true;
   updateGlobalPlayer();
   const mode = loop ? "循環播放" : "播放一次";
   const parts = [
