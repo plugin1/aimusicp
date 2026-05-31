@@ -314,12 +314,6 @@ textarea:focus {
   font-size: 0.72em;
 }
 
-.icon-lyrics .emoji-stack span + span {
-  margin-left: -14px;
-  margin-top: 28px;
-  font-size: 0.6em;
-}
-
 .system-launcher .sticker-icon {
   background: rgba(255, 255, 255, 0.64);
   overflow: visible;
@@ -1121,6 +1115,7 @@ h3 {
 .primary-action,
 .ghost-action,
 .icon-button,
+.done-action,
 .tiny-action {
   min-height: 42px;
   border: 1px solid transparent;
@@ -1157,9 +1152,27 @@ h3 {
   border-color: var(--line);
 }
 
+.done-action {
+  width: 42px;
+  min-width: 42px;
+  border-color: var(--line);
+  background: #ffffff;
+  color: #111111;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.done-action.active {
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12);
+}
+
 .primary-action svg,
 .ghost-action svg,
-.icon-button svg {
+.icon-button svg,
+.done-action svg {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
@@ -1452,6 +1465,23 @@ canvas {
   line-height: 1.52;
 }
 
+.idea-keyword-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.idea-keyword-row span {
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--idea-library-color, #f1c84f) 24%, var(--line));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 760;
+}
+
 .idea-card footer,
 .idea-actions {
   display: flex;
@@ -1484,16 +1514,17 @@ canvas {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--keyword-color, #f1c84f) 34%, var(--line));
   border-radius: 999px;
-  background: #ffffff;
+  background: color-mix(in srgb, var(--keyword-color, #f1c84f) 12%, #ffffff);
   padding: 7px 9px 7px 11px;
   color: var(--teal-strong);
   font-weight: 780;
   font-size: 13px;
 }
 
-.keyword-token button {
+.keyword-token button,
+.keyword-add-button {
   width: 22px;
   height: 22px;
   border: 0;
@@ -1501,6 +1532,17 @@ canvas {
   background: rgba(255, 255, 255, 0.78);
   color: var(--teal-strong);
   font-weight: 900;
+}
+
+.keyword-add-button {
+  width: auto;
+  height: auto;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px dashed color-mix(in srgb, var(--module-color, #f1c84f) 34%, var(--line));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
 }
 
 .field-head,
@@ -1543,10 +1585,11 @@ canvas {
     "idea language"
     "direction writing";
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .lyrics-layout > .tool-panel {
+  height: 100%;
   padding-bottom: 16px;
 }
 
@@ -1570,8 +1613,8 @@ canvas {
 
 .direction-section {
   min-width: 0;
-  max-height: 520px;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   padding-right: 2px;
 }
 
@@ -1621,8 +1664,8 @@ canvas {
 .linked-ideas {
   display: grid;
   gap: 8px;
-  max-height: 220px;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   padding-right: 4px;
 }
 
@@ -1715,6 +1758,18 @@ canvas {
   line-height: 1.5;
 }
 
+.recommendation-legend {
+  margin-top: 10px;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--module-color) 30%, var(--line));
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--module-color) 10%, #ffffff), rgba(255, 255, 255, 0.94));
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .arrangement-column {
   position: relative;
   min-width: 0;
@@ -1762,15 +1817,22 @@ canvas {
 }
 
 .music-card.recommended {
-  border-color: color-mix(in srgb, var(--preset-color) 52%, #111111);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--preset-color) 18%, transparent);
+  border-color: color-mix(in srgb, var(--preset-color) 62%, #111111);
+  border-style: dashed;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--preset-color) 20%, transparent),
+    0 10px 24px color-mix(in srgb, var(--preset-color) 10%, transparent);
 }
 
 .music-card.selected {
-  border-color: color-mix(in srgb, var(--preset-color) 70%, #111111);
+  border-color: color-mix(in srgb, var(--preset-color) 82%, #111111);
+  border-style: solid;
+  border-width: 2px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--preset-color) 20%, #ffffff), #ffffff 52%);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--preset-color) 24%, transparent);
+    linear-gradient(90deg, color-mix(in srgb, var(--preset-color) 28%, #ffffff), #ffffff 58%);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--preset-color) 28%, transparent),
+    0 18px 34px color-mix(in srgb, var(--preset-color) 16%, transparent);
 }
 
 .music-card header,
@@ -1928,7 +1990,7 @@ canvas {
 
 .prompt-summary-card {
   min-width: 0;
-  height: 286px;
+  height: 368px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1962,7 +2024,7 @@ canvas {
   background: rgba(255, 255, 255, 0.78);
   display: grid;
   gap: 4px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .summary-humming .summary-block {
@@ -1970,7 +2032,15 @@ canvas {
 }
 
 .summary-humming .summary-wave-canvas {
-  height: 36px;
+  height: 42px;
+}
+
+.summary-humming .summary-block:first-of-type {
+  flex: 1.05 1 0;
+}
+
+.summary-humming .summary-block:last-of-type {
+  flex: 1.45 1 0;
 }
 
 .summary-inspiration .summary-block:first-of-type {
@@ -2022,7 +2092,7 @@ canvas {
 .summary-draft {
   min-height: 0;
   max-height: none;
-  overflow: auto;
+  overflow: hidden;
   white-space: pre-wrap;
 }
 
@@ -2087,7 +2157,9 @@ canvas {
 }
 
 .prompt-provider-panel {
-  align-self: start;
+  align-self: stretch;
+  display: grid;
+  align-content: start;
 }
 
 .prompt-panel {
