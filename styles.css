@@ -1642,6 +1642,18 @@ canvas {
   padding-right: 2px;
 }
 
+.direction-section:nth-child(1) {
+  --direction-color: #e7a7bd;
+}
+
+.direction-section:nth-child(2) {
+  --direction-color: #f1c84f;
+}
+
+.direction-section:nth-child(3) {
+  --direction-color: #8fb7dc;
+}
+
 .direction-section .choice-grid {
   grid-template-columns: 1fr;
   margin-bottom: 0;
@@ -1649,6 +1661,14 @@ canvas {
 
 .direction-section .choice-card {
   min-height: 74px;
+  border-color: color-mix(in srgb, var(--direction-color) 34%, var(--line));
+  background: color-mix(in srgb, var(--direction-color) 8%, #ffffff);
+}
+
+.direction-section .choice-card.active {
+  border-color: color-mix(in srgb, var(--direction-color) 78%, #111111);
+  background: color-mix(in srgb, var(--direction-color) 26%, #ffffff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--direction-color) 16%, transparent);
 }
 
 .lyrics-left-panel,
@@ -1794,11 +1814,14 @@ canvas {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--idea-library-color, #f1c84f) 13%, transparent);
 }
 
-.review-action {
-  min-width: 34px;
+.idea-primary-action {
+  min-width: 82px;
 }
 
-.review-action.active,
+.idea-primary-action.reviewed {
+  border-color: color-mix(in srgb, var(--idea-library-color, #f1c84f) 46%, #111111);
+}
+
 .done-action.active {
   background: #111111;
   color: #ffffff;
@@ -1929,6 +1952,11 @@ canvas {
   box-shadow:
     0 0 0 4px color-mix(in srgb, var(--preset-color) 28%, transparent),
     0 18px 34px color-mix(in srgb, var(--preset-color) 16%, transparent);
+}
+
+.music-card.generated {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--preset-color) 18%, #ffffff), #ffffff 72%);
 }
 
 .music-card header,

@@ -1379,7 +1379,7 @@ function buildMelodyPhrase(analysis, limit = 18) {
 function buildArrangementHint(analysis) {
   const chordIds = getRecommendedPresetIds(CHORD_PRESETS);
   const drumIds = getRecommendedPresetIds(DRUM_PRESETS);
-  const chordNames = chordIds.map((id) => CHORD_PRESETS.find((preset) => preset.id === id)?.title).filter(Boolean).join(" / ");
+  const chordNames = ["旋律專屬和弦", ...chordIds.map((id) => CHORD_PRESETS.find((preset) => preset.id === id)?.title).filter(Boolean)].join(" / ");
   const drumNames = drumIds.map((id) => DRUM_PRESETS.find((preset) => preset.id === id)?.title).filter(Boolean).join(" / ");
   const tempo = analysis.bpm ? `${Math.round(analysis.bpm)} BPM` : "自由速度";
   const key = analysis.key || "未判斷調性";
@@ -1670,11 +1670,24 @@ function mergeKeywordLists(primary, secondary = []) {
   return [...words].slice(0, 30);
 }
 
+function orderKeywordsByText(words, text) {
+  const source = String(text || "").toLowerCase();
+  return words
+    .map((word, index) => {
+      const raw = String(word).toLowerCase();
+      const position = source.indexOf(raw);
+      return { word, index, position: position < 0 ? Number.POSITIVE_INFINITY : position };
+    })
+    .sort((a, b) => a.position - b.position || a.index - b.index)
+    .map((item) => item.word);
+}
+
 function getIdeaKeywords(idea) {
   if (!Array.isArray(idea.keywords) || !idea.keywords.length) {
     idea.keywords = extractKeywords(idea.text);
   }
   idea.keywords = mergeKeywordLists(idea.keywords);
+  idea.keywords = orderKeywordsByText(idea.keywords, idea.text);
   return idea.keywords.filter((word) => !state.deletedKeywords.has(word));
 }
 
@@ -1875,8 +1888,7 @@ function renderIdeas() {
           <div class="idea-keyword-row">${renderIdeaKeywordControls(idea, moods)}</div>
           <footer><span>${escapeHtml(moods)}</span><span>${reviewed ? "✓ 關鍵詞已確認" : "草稿：先篩關鍵詞"} · 建立 ${created} · 更新 ${updated}</span></footer>
           <div class="idea-actions">
-            <button class="tiny-action review-action${reviewed ? " active" : ""}" type="button" data-review-idea="${idea.id}" title="${reviewed ? "改回草稿" : "確認這條靈感的關鍵詞"}">✓</button>
-            <button class="tiny-action${selected ? " selected" : ""}" type="button" data-select-idea="${idea.id}" ${reviewed ? "" : "disabled"}>${selected ? "已選中" : (reviewed ? "選中" : "先確認")}</button>
+            <button class="tiny-action idea-primary-action${selected ? " selected" : ""}${reviewed ? " reviewed" : ""}" type="button" data-review-select-idea="${idea.id}" title="${reviewed ? "選中或取消帶入歌詞" : "確認這條靈感的關鍵詞"}">${reviewed ? (selected ? "已選中" : "選中") : "✓ 確認關鍵詞"}</button>
             <button class="tiny-action" type="button" data-edit-idea="${idea.id}">編輯</button>
             <button class="tiny-action" type="button" data-delete-idea="${idea.id}">刪除</button>
           </div>
@@ -1907,30 +1919,9 @@ function renderIdeas() {
     event.stopPropagation();
     deleteKeywordForIdea(button.dataset.deleteIdeaKeyword, button.dataset.keywordWord);
   }));
-  $$("[data-review-idea]").forEach((button) => button.addEventListener("click", (event) => {
+  $$("[data-review-select-idea]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
-    toggleIdeaReviewed(button.dataset.reviewIdea);
-  }));
-  $$("[data-select-idea]").forEach((button) => button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const id = button.dataset.selectIdea;
-    const idea = state.ideas.find((item) => item.id === id);
-    if (!isIdeaReviewed(idea)) {
-      toast("先檢查關鍵詞並按 ✓，再帶入歌詞");
-      return;
-    }
-    if (state.selectedIdeaIds.has(id)) state.selectedIdeaIds.delete(id);
-    else {
-      state.selectedIdeaIds.add(id);
-      state.lastIdeaId = id;
-    }
-    persistIdeas();
-    renderIdeas();
-    recommendLyrics();
-    renderChordCards();
-    renderDrumCards();
-    renderLyricsIdeaBrief();
-    updatePrompt();
+    handleIdeaPrimaryAction(button.dataset.reviewSelectIdea);
   }));
   $$("[data-edit-idea]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -2053,6 +2044,35 @@ function toggleIdeaReviewed(ideaId) {
   state.lastIdeaId = idea.id;
   rebuildKeywordMap();
   finishKeywordMutation("關鍵詞已確認，現在可以選中帶入歌詞", { alreadyRebuilt: true });
+}
+
+function handleIdeaPrimaryAction(ideaId) {
+  const idea = state.ideas.find((item) => item.id === ideaId);
+  if (!idea) return;
+  if (!isIdeaReviewed(idea)) {
+    const keywords = getIdeaKeywords(idea);
+    if (!keywords.length) {
+      toast("請至少保留一個關鍵詞，再確認");
+      return;
+    }
+    idea.reviewed = true;
+    state.lastIdeaId = idea.id;
+    rebuildKeywordMap();
+    finishKeywordMutation("關鍵詞已確認，現在可以再按一次選中帶入歌詞", { alreadyRebuilt: true });
+    return;
+  }
+  if (state.selectedIdeaIds.has(idea.id)) state.selectedIdeaIds.delete(idea.id);
+  else {
+    state.selectedIdeaIds.add(idea.id);
+    state.lastIdeaId = idea.id;
+  }
+  persistIdeas();
+  renderIdeas();
+  recommendLyrics();
+  renderChordCards();
+  renderDrumCards();
+  renderLyricsIdeaBrief();
+  updatePrompt();
 }
 
 function addKeywordByPrompt() {
@@ -2757,8 +2777,102 @@ function draftLyrics() {
   updateProgress();
 }
 
+function getMelodyChordPreset() {
+  const analysis = state.analysis;
+  if (!analysis?.notes?.length) return null;
+  const root = getKeyRootIndex(analysis.key);
+  const rootPc = root >= 0 ? root : (((analysis.notes[0].midi % 12) + 12) % 12);
+  const isMinor = /Minor/i.test(analysis.key || "");
+  const templates = isMinor
+    ? [
+        { degree: 0, suffix: "m7", intervals: [0, 3, 7, 10] },
+        { degree: 3, suffix: "maj7", intervals: [0, 4, 7, 11] },
+        { degree: 5, suffix: "m7", intervals: [0, 3, 7, 10] },
+        { degree: 7, suffix: "m7", intervals: [0, 3, 7, 10] },
+        { degree: 8, suffix: "maj7", intervals: [0, 4, 7, 11] },
+        { degree: 10, suffix: "7", intervals: [0, 4, 7, 10] }
+      ]
+    : [
+        { degree: 0, suffix: "maj7", intervals: [0, 4, 7, 11] },
+        { degree: 2, suffix: "m7", intervals: [0, 3, 7, 10] },
+        { degree: 4, suffix: "m7", intervals: [0, 3, 7, 10] },
+        { degree: 5, suffix: "maj7", intervals: [0, 4, 7, 11] },
+        { degree: 7, suffix: "7", intervals: [0, 4, 7, 10] },
+        { degree: 9, suffix: "m7", intervals: [0, 3, 7, 10] }
+      ];
+  const segments = splitMelodyIntoSegments(analysis, 4);
+  const chosen = [];
+  segments.forEach((segment, index) => {
+    const previous = chosen[index - 1];
+    chosen.push(chooseChordForSegment(segment, templates, rootPc, previous));
+  });
+  const fallback = isMinor
+    ? [templates[0], templates[4], templates[2], templates[3]]
+    : [templates[0], templates[5], templates[3], templates[4]];
+  const chords = chosen.map((template, index) => template || fallback[index % fallback.length]);
+  return {
+    id: "melody-fit",
+    title: "旋律專屬和弦",
+    style: "依照哼唱主音、停留音和調性感覺生成，先用來檢查旋律是否能被和聲托住",
+    moodTags: [],
+    color: "#e5a8bd",
+    bpm: analysis.bpm ? Math.round(analysis.bpm) : 96,
+    chords: chords.map((template) => formatChordLabel(rootPc, template)),
+    notes: chords.map((template) => buildChordMidiNotes(rootPc, template)),
+    generated: true
+  };
+}
+
+function splitMelodyIntoSegments(analysis, count) {
+  const duration = Math.max(analysis.duration || 0, analysis.notes.at(-1)?.time || 1, 1);
+  return Array.from({ length: count }, (_, index) => {
+    const start = (duration / count) * index;
+    const end = (duration / count) * (index + 1);
+    const notes = analysis.notes.filter((note) => note.time >= start && note.time < end);
+    return notes.length ? notes : analysis.notes.slice(index, index + 1);
+  });
+}
+
+function chooseChordForSegment(notes, templates, rootPc, previous) {
+  if (!notes?.length) return null;
+  const pcs = notes.map((note) => ((note.midi % 12) + 12) % 12);
+  return templates
+    .map((template) => {
+      const chordPcs = template.intervals.map((interval) => (rootPc + template.degree + interval) % 12);
+      const fit = pcs.reduce((score, pc) => score + (chordPcs.includes(pc) ? 3 : chordPcs.some((tone) => pitchDistance(tone, pc) <= 2) ? 0.4 : 0), 0);
+      const stable = previous ? -Math.min(2, Math.abs(template.degree - previous.degree) / 4) : 0;
+      const rootBonus = pcs.includes((rootPc + template.degree) % 12) ? 0.8 : 0;
+      return { template, score: fit + stable + rootBonus };
+    })
+    .sort((a, b) => b.score - a.score)[0]?.template || templates[0];
+}
+
+function pitchDistance(a, b) {
+  const diff = Math.abs(a - b) % 12;
+  return Math.min(diff, 12 - diff);
+}
+
+function formatChordLabel(rootPc, template) {
+  return `${NOTE_NAMES[(rootPc + template.degree + 12) % 12]}${template.suffix}`;
+}
+
+function buildChordMidiNotes(rootPc, template) {
+  let rootMidi = 48 + ((rootPc + template.degree + 12) % 12);
+  while (rootMidi > 58) rootMidi -= 12;
+  while (rootMidi < 43) rootMidi += 12;
+  return template.intervals.map((interval) => rootMidi + interval);
+}
+
+function findChordPreset(id) {
+  const generated = getMelodyChordPreset();
+  if (generated?.id === id) return generated;
+  return CHORD_PRESETS.find((item) => item.id === id);
+}
+
 function renderChordCards() {
   const recommended = getRecommendedPresetIds(CHORD_PRESETS);
+  const melodyPreset = getMelodyChordPreset();
+  const chordPresets = melodyPreset ? [melodyPreset, ...CHORD_PRESETS] : CHORD_PRESETS;
   const emptySelected = state.selectedChord?.empty ? " selected" : "";
   $("#chordCards").innerHTML = `<article class="music-card arrangement-null-card${emptySelected}" style="--preset-color: ${EMPTY_CHORD.color}">
       <header><strong>不使用和弦</strong><small>選空</small></header>
@@ -2769,11 +2883,12 @@ function renderChordCards() {
           <button class="ghost-action" type="button" data-empty-chord>${state.selectedChord?.empty ? "取消選空" : "選空"}</button>
         </div>
       </footer>
-    </article>` + CHORD_PRESETS.map((preset) => {
+    </article>` + chordPresets.map((preset) => {
     const selected = !state.selectedChord?.empty && preset.id === state.selectedChord?.id ? " selected" : "";
-    const isRecommended = recommended.includes(preset.id) ? " recommended" : "";
-    const badge = recommended.includes(preset.id) ? (state.analysis?.notes?.length ? "旋律推薦" : "情緒推薦") : "";
-    return `<article class="music-card${selected}${isRecommended}" style="--preset-color: ${preset.color}" data-chord-id="${preset.id}">
+    const isRecommended = preset.generated || recommended.includes(preset.id) ? " recommended" : "";
+    const generated = preset.generated ? " generated" : "";
+    const badge = preset.generated ? "旋律專屬" : (recommended.includes(preset.id) ? (state.analysis?.notes?.length ? "旋律推薦" : "情緒推薦") : "");
+    return `<article class="music-card${selected}${isRecommended}${generated}" style="--preset-color: ${preset.color}" data-chord-id="${preset.id}">
       <header><strong>${preset.title}</strong><small title="歌曲速度，數字越大感覺越快。">${badge || "速度 " + preset.bpm}</small></header>
       <div class="chord-line">${preset.chords.map((chord) => `<span>${chord}</span>`).join("")}</div>
       <footer>
@@ -2781,6 +2896,7 @@ function renderChordCards() {
         <div class="music-actions">
           <button class="ghost-action" type="button" data-select-chord="${preset.id}">${selected ? "取消選用" : "選用"}</button>
           <button class="ghost-action" type="button" data-play-chord="${preset.id}"><span aria-hidden="true">▶</span>播放</button>
+          ${preset.generated ? `<button class="ghost-action" type="button" data-play-melody-chord="${preset.id}"><span aria-hidden="true">♪</span>旋律+和弦</button>` : ""}
         </div>
       </footer>
     </article>`;
@@ -2794,7 +2910,7 @@ function renderChordCards() {
   });
   $$("[data-select-chord]").forEach((button) => {
     button.addEventListener("click", () => {
-      const preset = CHORD_PRESETS.find((item) => item.id === button.dataset.selectChord);
+      const preset = findChordPreset(button.dataset.selectChord);
       state.selectedChord = !state.selectedChord?.empty && state.selectedChord?.id === preset.id ? null : preset;
       renderChordCards();
       markArrangementChanged();
@@ -2802,8 +2918,14 @@ function renderChordCards() {
   });
   $$("[data-play-chord]").forEach((button) => {
     button.addEventListener("click", () => {
-      const preset = CHORD_PRESETS.find((item) => item.id === button.dataset.playChord);
+      const preset = findChordPreset(button.dataset.playChord);
       playChordPreset(preset);
+    });
+  });
+  $$("[data-play-melody-chord]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const preset = findChordPreset(button.dataset.playMelodyChord);
+      playMelodyChordPreset(preset);
     });
   });
   updateArrangementControls();
@@ -2922,6 +3044,26 @@ async function playChordPreset(preset) {
   setAudioState(`正在播放：${preset.title}。如果仍然聽不到，請確認瀏覽器分頁和系統音量。`);
 }
 
+async function playMelodyChordPreset(preset) {
+  if (!preset || preset.empty || !preset.notes?.length || !state.analysis?.notes?.length) return;
+  const ctx = await getAudioContext();
+  stopScheduledAudio();
+  const now = ctx.currentTime + 0.05;
+  const beat = 60 / (preset.bpm || state.analysis.bpm || 96);
+  const chordSpan = beat * 4;
+  preset.notes.forEach((notes, index) => {
+    scheduleChordVoicing(ctx, notes, now + index * chordSpan, chordSpan, 0.1);
+  });
+  scheduleMelodyMotif(ctx, now, {
+    bpm: preset.bpm,
+    targetDuration: chordSpan * preset.notes.length,
+    level: 0.2,
+    wave: "triangle",
+    minDuration: beat * 0.32
+  });
+  setAudioState(`正在播放：${preset.title}。這組和弦是按目前旋律即時生成的試聽版。`);
+}
+
 async function playDrumPreset(preset) {
   if (!preset || preset.empty || !preset.pattern?.length) return;
   const ctx = await getAudioContext();
@@ -2960,7 +3102,7 @@ async function playArrangementCombo({ loop = false, includeMelody = false } = {}
   state.isArrangementLooping = loop;
   const startTime = ctx.currentTime + 0.05;
   scheduleArrangementCycle(ctx, startTime);
-  if (includeMelody) scheduleMelodyMotif(ctx, startTime);
+  if (includeMelody) scheduleMelodyMotif(ctx, startTime, { level: 0.18, wave: "triangle" });
   updateGlobalPlayer();
   const mode = includeMelody ? "播放旋律加編曲" : (loop ? "循環播放" : "播放一次");
   const parts = [
@@ -3013,24 +3155,24 @@ function scheduleArrangementCycle(ctx, startTime) {
   }
 }
 
-function scheduleMelodyMotif(ctx, startTime) {
+function scheduleMelodyMotif(ctx, startTime, options = {}) {
   const analysis = state.analysis;
   if (!analysis?.notes?.length) return;
-  const bpm = state.selectedDrum?.bpm || state.selectedChord?.bpm || analysis.bpm || 96;
+  const bpm = options.bpm || state.selectedDrum?.bpm || state.selectedChord?.bpm || analysis.bpm || 96;
   const beat = 60 / bpm;
   const notes = analysis.notes.slice(0, 24);
   const sourceDuration = Math.max(analysis.duration || notes.at(-1)?.time || 1, 1);
-  const targetDuration = beat * 8;
+  const targetDuration = options.targetDuration || beat * 8;
   const scale = targetDuration / sourceDuration;
   notes.forEach((note) => {
     const start = startTime + note.time * scale;
-    const duration = clamp(note.duration * scale, 0.12, beat * 1.6);
+    const duration = clamp(note.duration * scale * 1.08, options.minDuration || 0.12, beat * 1.8);
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = "sine";
+    osc.type = options.wave || "triangle";
     osc.frequency.value = midiToFrequency(note.midi);
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.24, start + 0.03);
+    gain.gain.exponentialRampToValueAtTime(options.level || 0.2, start + 0.03);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     osc.connect(gain).connect(getAudioDestination());
     osc.start(start);
