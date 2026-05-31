@@ -1823,6 +1823,24 @@ function addKeyword(word, moods) {
   state.keywordMap.set(word, current);
 }
 
+function getIdeaEmotionColor(idea) {
+  const moods = Array.isArray(idea?.moods) ? idea.moods : [];
+  return EMOTIONS.find((emotion) => moods.includes(emotion.name))?.color || "#f1c84f";
+}
+
+function renderIdeaKeywordControls(idea, moodLabel) {
+  const color = getIdeaEmotionColor(idea);
+  const keywords = getIdeaKeywords(idea);
+  const chips = keywords.length
+    ? keywords.map((word) => `<span class="idea-keyword-chip" style="--keyword-color:${color}" title="情緒來源：${escapeHtml(moodLabel)}">
+        <span>${escapeHtml(word)}</span>
+        <button type="button" data-edit-idea-keyword="${idea.id}" data-keyword-word="${escapeHtml(word)}" aria-label="編輯 ${escapeHtml(word)}">✎</button>
+        <button type="button" data-delete-idea-keyword="${idea.id}" data-keyword-word="${escapeHtml(word)}" aria-label="刪除 ${escapeHtml(word)}">×</button>
+      </span>`).join("")
+    : `<span class="idea-keyword-empty">等待你篩選關鍵詞</span>`;
+  return `${chips}<button class="idea-keyword-add" type="button" data-add-idea-keyword="${idea.id}">+ 加詞</button>`;
+}
+
 function renderIdeas() {
   const list = $("#ideaList");
   const filterNames = new Set([...state.activeIdeaFilters].map((id) => getEmotionNameById(id)));
@@ -1839,10 +1857,9 @@ function renderIdeas() {
         const moods = Array.isArray(idea.moods) ? idea.moods.join(" / ") : idea.mood || "未分類";
         const history = (idea.history || []).map((entry) => `<li>${formatDateTime(entry.at)}：${escapeHtml((entry.text || "").slice(0, 42))}</li>`).join("");
         const selected = state.selectedIdeaIds.has(idea.id);
-        const keywords = getIdeaKeywords(idea);
         return `<article class="idea-card${selected ? " selected" : ""}" data-view-idea="${idea.id}">
           <p>${escapeHtml(idea.text)}</p>
-          <div class="idea-keyword-row">${keywords.length ? keywords.map((word) => `<span title="情緒來源：${escapeHtml(moods)}">${escapeHtml(word)}</span>`).join("") : "<span>等待篩選關鍵詞</span>"}</div>
+          <div class="idea-keyword-row">${renderIdeaKeywordControls(idea, moods)}</div>
           <footer><span>${escapeHtml(moods)}</span><span>建立 ${created} · 更新 ${updated}</span></footer>
           <div class="idea-actions">
             <button class="tiny-action${selected ? " selected" : ""}" type="button" data-select-idea="${idea.id}">${selected ? "已選中" : "選中"}</button>
@@ -1864,6 +1881,18 @@ function renderIdeas() {
       updatePrompt();
     });
   });
+  $$("[data-add-idea-keyword]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    addKeywordToIdeaByPrompt(button.dataset.addIdeaKeyword);
+  }));
+  $$("[data-edit-idea-keyword]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    editKeywordForIdeaByPrompt(button.dataset.editIdeaKeyword, button.dataset.keywordWord);
+  }));
+  $$("[data-delete-idea-keyword]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    deleteKeywordForIdea(button.dataset.deleteIdeaKeyword, button.dataset.keywordWord);
+  }));
   $$("[data-select-idea]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
     const id = button.dataset.selectIdea;
@@ -1921,6 +1950,61 @@ function renderKeywords() {
   });
 }
 
+function addKeywordToIdeaByPrompt(ideaId) {
+  const idea = state.ideas.find((item) => item.id === ideaId);
+  if (!idea) return;
+  const raw = window.prompt("替這條靈感加入關鍵詞", "");
+  const word = cleanKeyword(raw || "");
+  if (!isUsefulWord(word)) {
+    toast("這個詞太短或太像連接詞，沒有加入");
+    return;
+  }
+  state.deletedKeywords.delete(word);
+  idea.keywords = mergeKeywordLists([word], getIdeaKeywords(idea));
+  finishKeywordMutation("這條靈感的關鍵詞已加入");
+}
+
+function editKeywordForIdeaByPrompt(ideaId, oldWord) {
+  const idea = state.ideas.find((item) => item.id === ideaId);
+  if (!idea) return;
+  const raw = window.prompt("編輯這條靈感的關鍵詞", oldWord);
+  if (raw === null) return;
+  const nextWord = cleanKeyword(raw || "");
+  if (!isUsefulWord(nextWord)) {
+    toast("這個詞太短或太像連接詞，沒有保存");
+    return;
+  }
+  idea.keywords = getIdeaKeywords(idea).map((word) => word === oldWord ? nextWord : word);
+  idea.keywords = mergeKeywordLists(idea.keywords);
+  if (state.selectedLyricKeywords.has(oldWord)) {
+    state.selectedLyricKeywords.delete(oldWord);
+    state.selectedLyricKeywords.add(nextWord);
+  }
+  state.deletedKeywords.delete(nextWord);
+  finishKeywordMutation("這條靈感的關鍵詞已更新");
+}
+
+function deleteKeywordForIdea(ideaId, word) {
+  const idea = state.ideas.find((item) => item.id === ideaId);
+  if (!idea) return;
+  idea.keywords = getIdeaKeywords(idea).filter((item) => item !== word);
+  rebuildKeywordMap();
+  if (!state.keywordMap.has(word)) state.selectedLyricKeywords.delete(word);
+  finishKeywordMutation("這條靈感的關鍵詞已刪除", { alreadyRebuilt: true });
+}
+
+function finishKeywordMutation(message, { alreadyRebuilt = false } = {}) {
+  if (!alreadyRebuilt) rebuildKeywordMap();
+  persistIdeas();
+  renderIdeas();
+  renderKeywords();
+  renderLyricsIdeaBrief();
+  recommendLyrics();
+  updatePrompt();
+  updateProgress();
+  toast(message);
+}
+
 function addKeywordByPrompt() {
   const targetIdea = getKeywordTargetIdea();
   if (!targetIdea) {
@@ -1935,14 +2019,7 @@ function addKeywordByPrompt() {
   }
   state.deletedKeywords.delete(word);
   targetIdea.keywords = mergeKeywordLists([word], getIdeaKeywords(targetIdea));
-  rebuildKeywordMap();
-  persistIdeas();
-  renderIdeas();
-  renderKeywords();
-  renderLyricsIdeaBrief();
-  recommendLyrics();
-  updatePrompt();
-  toast("關鍵詞已加入");
+  finishKeywordMutation("關鍵詞已加入");
 }
 
 function editKeywordByPrompt(oldWord) {
@@ -1962,14 +2039,7 @@ function editKeywordByPrompt(oldWord) {
     state.selectedLyricKeywords.add(nextWord);
   }
   state.deletedKeywords.delete(nextWord);
-  rebuildKeywordMap();
-  persistIdeas();
-  renderIdeas();
-  renderKeywords();
-  renderLyricsIdeaBrief();
-  recommendLyrics();
-  updatePrompt();
-  toast("關鍵詞已更新");
+  finishKeywordMutation("關鍵詞已更新");
 }
 
 function deleteKeywordEverywhere(word) {
@@ -1979,13 +2049,7 @@ function deleteKeywordEverywhere(word) {
   state.ideas.forEach((idea) => {
     idea.keywords = getIdeaKeywords(idea).filter((item) => item !== word);
   });
-  persistIdeas();
-  rebuildKeywordMap();
-  renderIdeas();
-  renderKeywords();
-  renderLyricsIdeaBrief();
-  recommendLyrics();
-  updatePrompt();
+  finishKeywordMutation("關鍵詞已刪除");
 }
 
 function getKeywordTargetIdea() {
@@ -2220,7 +2284,8 @@ function renderLyricsIdeaBrief() {
   const ideaHtml = ideas.length
     ? ideas.map((idea) => {
       const keywords = getIdeaKeywords(idea);
-      return `<article class="linked-idea-card">
+      const color = getIdeaEmotionColor(idea);
+      return `<article class="linked-idea-card" style="--keyword-color:${color}">
         <span>${escapeHtml((idea.moods || []).join(" / ") || "未分類")}</span>
         <p>${escapeHtml(idea.text)}</p>
         <div class="linked-keywords selectable" aria-label="可選關鍵詞">${keywords.length ? keywords.map((word) => {

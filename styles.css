@@ -1472,7 +1472,7 @@ canvas {
   margin: 0 0 10px;
 }
 
-.idea-keyword-row span {
+.idea-keyword-row > span {
   padding: 5px 8px;
   border: 1px solid color-mix(in srgb, var(--idea-library-color, #f1c84f) 24%, var(--line));
   border-radius: 999px;
@@ -1480,6 +1480,44 @@ canvas {
   color: var(--ink);
   font-size: 12px;
   font-weight: 760;
+}
+
+.idea-keyword-row .idea-keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: color-mix(in srgb, var(--keyword-color, #f1c84f) 38%, var(--line));
+  background: color-mix(in srgb, var(--keyword-color, #f1c84f) 13%, #ffffff);
+}
+
+.idea-keyword-chip > span {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.idea-keyword-chip button,
+.idea-keyword-add {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--teal-strong);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.idea-keyword-add {
+  width: auto;
+  height: auto;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px dashed color-mix(in srgb, var(--idea-library-color, #f1c84f) 32%, var(--line));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .idea-card footer,
@@ -1698,18 +1736,18 @@ canvas {
 .linked-keywords span,
 .linked-keyword-choice {
   padding: 6px 9px;
-  border: 1px solid color-mix(in srgb, var(--module-color) 26%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--keyword-color, var(--module-color)) 30%, var(--line));
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.74);
+  background: color-mix(in srgb, var(--keyword-color, var(--module-color)) 10%, #ffffff);
   color: var(--ink);
   font-size: 12px;
   font-weight: 780;
 }
 
 .linked-keyword-choice.selected {
-  border-color: color-mix(in srgb, var(--module-color) 68%, #111111);
-  background: color-mix(in srgb, var(--module-color) 26%, #ffffff);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--module-color) 18%, transparent);
+  border-color: color-mix(in srgb, var(--keyword-color, var(--module-color)) 68%, #111111);
+  background: color-mix(in srgb, var(--keyword-color, var(--module-color)) 26%, #ffffff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--keyword-color, var(--module-color)) 18%, transparent);
 }
 
 .reference-panel {
