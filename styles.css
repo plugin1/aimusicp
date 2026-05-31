@@ -293,6 +293,33 @@ textarea:focus {
   filter: drop-shadow(0 8px 12px rgba(17, 17, 17, 0.12));
 }
 
+.system-launcher .emoji-icon {
+  overflow: visible;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 42px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.emoji-stack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.emoji-stack span + span {
+  margin-left: -10px;
+  margin-top: 24px;
+  font-size: 0.72em;
+}
+
+.icon-lyrics .emoji-stack span + span {
+  margin-left: -14px;
+  margin-top: 28px;
+  font-size: 0.6em;
+}
+
 .system-launcher .sticker-icon {
   background: rgba(255, 255, 255, 0.64);
   overflow: visible;
@@ -1157,6 +1184,12 @@ h3 {
   font-size: 12px;
 }
 
+.tiny-action.selected {
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
+}
+
 button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -1199,6 +1232,39 @@ canvas {
 .metric-grid div {
   padding: 12px;
   background: var(--mist);
+}
+
+.melody-result-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.melody-result-grid div {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--module-color) 30%, var(--line));
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--module-color) 10%, #ffffff), rgba(255, 255, 255, 0.94));
+}
+
+.melody-result-grid span,
+.melody-result-grid strong {
+  display: block;
+}
+
+.melody-result-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.melody-result-grid strong {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.42;
 }
 
 .metric-grid span,
@@ -1341,9 +1407,10 @@ canvas {
 }
 
 .chip.selected {
-  border-color: var(--teal);
+  border-color: color-mix(in srgb, var(--module-color, #111111) 64%, #111111);
   color: var(--teal-strong);
-  background: #fff5bd;
+  background: color-mix(in srgb, var(--module-color, #111111) 22%, #ffffff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--module-color, #111111) 14%, transparent);
 }
 
 .filter-panel {
@@ -1371,6 +1438,13 @@ canvas {
   border-radius: 8px;
   padding: 12px;
   background: white;
+}
+
+.idea-card.selected {
+  border-color: color-mix(in srgb, var(--idea-library-color, #f1c84f) 58%, #111111);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--idea-library-color, #f1c84f) 14%, #ffffff), #ffffff 74%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--idea-library-color, #f1c84f) 16%, transparent);
 }
 
 .idea-card p {
@@ -1488,6 +1562,28 @@ canvas {
   grid-area: direction;
 }
 
+.direction-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.direction-section {
+  min-width: 0;
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.direction-section .choice-grid {
+  grid-template-columns: 1fr;
+  margin-bottom: 0;
+}
+
+.direction-section .choice-card {
+  min-height: 86px;
+}
+
 .lyrics-writing-panel {
   grid-area: writing;
 }
@@ -1522,6 +1618,33 @@ canvas {
   justify-self: stretch;
 }
 
+.linked-ideas {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.linked-idea-card {
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--module-color) 24%, var(--line));
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.linked-idea-card span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.linked-idea-card p {
+  margin: 0;
+}
+
 .linked-keywords {
   display: flex;
   flex-wrap: wrap;
@@ -1529,7 +1652,8 @@ canvas {
   margin-top: 10px;
 }
 
-.linked-keywords span {
+.linked-keywords span,
+.linked-keyword-choice {
   padding: 6px 9px;
   border: 1px solid color-mix(in srgb, var(--module-color) 26%, var(--line));
   border-radius: 999px;
@@ -1537,6 +1661,12 @@ canvas {
   color: var(--ink);
   font-size: 12px;
   font-weight: 780;
+}
+
+.linked-keyword-choice.selected {
+  border-color: color-mix(in srgb, var(--module-color) 68%, #111111);
+  background: color-mix(in srgb, var(--module-color) 26%, #ffffff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--module-color) 18%, transparent);
 }
 
 .reference-panel {
@@ -1613,13 +1743,17 @@ canvas {
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-auto-rows: minmax(214px, 1fr);
   gap: 12px;
 }
 
 .music-card {
   --preset-color: #111111;
   display: grid;
+  grid-template-rows: auto minmax(52px, auto) 1fr;
   gap: 11px;
+  min-height: 214px;
+  height: 100%;
   border: 1px solid color-mix(in srgb, var(--preset-color) 22%, var(--line));
   border-radius: 8px;
   padding: 14px;
@@ -1650,6 +1784,7 @@ canvas {
 
 .music-card footer {
   align-items: flex-end;
+  align-self: end;
 }
 
 .music-actions {
@@ -1676,6 +1811,26 @@ canvas {
 .arrangement-null.selected {
   border-style: solid;
   background: color-mix(in srgb, var(--module-color, #111111) 12%, #ffffff);
+}
+
+.arrangement-null-card {
+  border-style: dashed;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--preset-color) 8%, #ffffff), rgba(255, 255, 255, 0.92) 52%);
+}
+
+.arrangement-null-card.selected {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--preset-color) 68%, #111111);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--preset-color) 20%, #ffffff), #ffffff 52%);
+}
+
+.empty-card-body {
+  align-self: center;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 13px;
 }
 
 .chord-line {
@@ -2077,6 +2232,7 @@ canvas {
   .tool-grid.two,
   .tool-grid.three,
   .lyrics-layout,
+  .direction-columns,
   .lyrics-language-row,
   .lyrics-rhyme-row,
   .arrangement-grid,
@@ -2105,6 +2261,7 @@ canvas {
 
   .source-grid,
   .metric-grid,
+  .melody-result-grid,
   .choice-grid.mini,
   .status-strip {
     grid-template-columns: 1fr;
