@@ -71,6 +71,7 @@ const CHOICES = {
     { label: "四川話口味", value: "四川話口味", desc: "加入四川話口語節奏與幽默感，押韻可更鬆。" }
   ],
   narrator: [
+    { label: "先留空", value: "", desc: "暫時不指定演唱視角，讓後面提示詞按歌詞自然判斷。" },
     { label: "我對你說", value: "第一人稱，像把心事直接唱給某個人", desc: "最像日記或私信，情緒直接、親密。" },
     { label: "對你低語", value: "第二人稱，像在對聽眾或對方低聲說話", desc: "一直對著某個「你」唱，適合告白、質問、告別。" },
     { label: "電影旁白", value: "旁觀者視角，像電影旁白一樣描述故事", desc: "不急著說我愛你或我難過，而是先拍出場景。" },
@@ -79,6 +80,7 @@ const CHOICES = {
     { label: "群像旁白", value: "群像視角，像把一群人的共同情緒唱出來", desc: "適合青春、城市、舞台感，主角不只是一個人。" }
   ],
   lyricStyle: [
+    { label: "先留空", value: "", desc: "暫時不指定口吻，先讓草稿保留原本語氣。" },
     { label: "口語親密", value: "口語、親密、克制", desc: "像真的在說話，詞不要太華麗，適合小白快速完成。" },
     { label: "詩性留白", value: "詩性、意象密集、留白", desc: "畫面感重，不把意思說滿，適合氛圍型歌曲。" },
     { label: "電影敘事", value: "敘事、電影感、具體場景", desc: "像剪一段短片，先有場景、人物和動作。" },
@@ -87,6 +89,7 @@ const CHOICES = {
     { label: "幽默口語", value: "幽默、生活化、帶一點自嘲", desc: "適合輕快、趣味、尷尬或荒謬感的題材。" }
   ],
   songStructure: [
+    { label: "先留空", value: "", desc: "暫時不指定段落，保留自由寫法。" },
     { label: "流行完整", value: "Verse - Pre Chorus - Chorus - Verse - Chorus - Bridge - Chorus", desc: "主歌鋪陳，副歌爆點，最通用的完整歌結構。" },
     { label: "電子流行", value: "Intro - Verse - Chorus - Drop - Verse - Chorus - Outro", desc: "有 Drop，適合節拍和氛圍推進。" },
     { label: "Hook 循環", value: "Verse - Hook - Verse - Hook - Bridge - Hook", desc: "重複核心句，適合洗腦、副歌短的歌。" },
@@ -525,6 +528,7 @@ function bindEvents() {
   const recommendLyricsButton = $("#recommendLyricsButton");
   if (recommendLyricsButton) recommendLyricsButton.addEventListener("click", recommendLyrics);
   $("#draftLyricsButton").addEventListener("click", draftLyrics);
+  $("#structureLyricsButton").addEventListener("click", structureDraftLyrics);
   $("#globalLoopButton").addEventListener("click", toggleArrangementLoop);
   $("#playComboButton").addEventListener("click", () => playArrangementCombo({ loop: false }));
   $("#playMelodyComboButton").addEventListener("click", () => playArrangementCombo({ loop: false, includeMelody: true }));
@@ -540,6 +544,8 @@ function bindEvents() {
     const element = document.getElementById(id);
     element.addEventListener("input", () => {
       if (["targetLang", "rhymeInput", "themeInput", "narratorInput", "lyricStyle", "songStructure", "dialectInput"].includes(id)) recommendLyrics();
+      if (id === "songStructure") maybeInsertStructureGuide();
+      if (id === "lyricsDraft") recommendLyrics();
       if (id === "lyricsDraft") state.lyricsDone = false;
       updatePrompt();
       updateCompletionButtons();
@@ -1543,27 +1549,28 @@ function saveIdea() {
     idea.text = text;
     idea.moods = moods;
     idea.keywords = mergeKeywordLists(extractKeywords(text), idea.keywords || []);
+    idea.reviewed = false;
     idea.updatedAt = now;
     state.lastIdeaId = idea.id;
-    state.selectedIdeaIds.add(idea.id);
+    state.selectedIdeaIds.delete(idea.id);
     rebuildKeywordMap();
-    toast("靈感已更新");
+    toast("靈感已更新，請重新檢查關鍵詞");
   } else {
     const idea = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       text,
       moods,
       keywords: extractKeywords(text),
+      reviewed: false,
       createdAt: now,
       updatedAt: now,
       history: []
     };
     state.ideas.unshift(idea);
     state.lastIdeaId = idea.id;
-    state.selectedIdeaIds.add(idea.id);
-    idea.keywords.forEach((word) => addKeyword(word, moods));
-    toast("靈感已加入，請檢查關鍵詞");
+    toast("靈感已存為草稿，檢查關鍵詞後按 ✓ 才能帶入歌詞");
   }
+  rebuildKeywordMap();
   persistIdeas();
   resetIdeaEditor();
   state.selectedMoods.clear();
@@ -1648,6 +1655,7 @@ function deleteIdea(id) {
 function rebuildKeywordMap() {
   state.keywordMap.clear();
   state.ideas.forEach((idea) => {
+    if (!isIdeaReviewed(idea)) return;
     const moods = Array.isArray(idea.moods) ? idea.moods : [];
     getIdeaKeywords(idea).forEach((word) => addKeyword(word, moods));
   });
@@ -1823,6 +1831,10 @@ function addKeyword(word, moods) {
   state.keywordMap.set(word, current);
 }
 
+function isIdeaReviewed(idea) {
+  return Boolean(idea?.reviewed);
+}
+
 function getIdeaEmotionColor(idea) {
   const moods = Array.isArray(idea?.moods) ? idea.moods : [];
   return EMOTIONS.find((emotion) => moods.includes(emotion.name))?.color || "#f1c84f";
@@ -1857,12 +1869,14 @@ function renderIdeas() {
         const moods = Array.isArray(idea.moods) ? idea.moods.join(" / ") : idea.mood || "未分類";
         const history = (idea.history || []).map((entry) => `<li>${formatDateTime(entry.at)}：${escapeHtml((entry.text || "").slice(0, 42))}</li>`).join("");
         const selected = state.selectedIdeaIds.has(idea.id);
-        return `<article class="idea-card${selected ? " selected" : ""}" data-view-idea="${idea.id}">
+        const reviewed = isIdeaReviewed(idea);
+        return `<article class="idea-card${selected ? " selected" : ""}${reviewed ? " reviewed" : " draft"}" data-view-idea="${idea.id}">
           <p>${escapeHtml(idea.text)}</p>
           <div class="idea-keyword-row">${renderIdeaKeywordControls(idea, moods)}</div>
-          <footer><span>${escapeHtml(moods)}</span><span>建立 ${created} · 更新 ${updated}</span></footer>
+          <footer><span>${escapeHtml(moods)}</span><span>${reviewed ? "✓ 關鍵詞已確認" : "草稿：先篩關鍵詞"} · 建立 ${created} · 更新 ${updated}</span></footer>
           <div class="idea-actions">
-            <button class="tiny-action${selected ? " selected" : ""}" type="button" data-select-idea="${idea.id}">${selected ? "已選中" : "選中"}</button>
+            <button class="tiny-action review-action${reviewed ? " active" : ""}" type="button" data-review-idea="${idea.id}" title="${reviewed ? "改回草稿" : "確認這條靈感的關鍵詞"}">✓</button>
+            <button class="tiny-action${selected ? " selected" : ""}" type="button" data-select-idea="${idea.id}" ${reviewed ? "" : "disabled"}>${selected ? "已選中" : (reviewed ? "選中" : "先確認")}</button>
             <button class="tiny-action" type="button" data-edit-idea="${idea.id}">編輯</button>
             <button class="tiny-action" type="button" data-delete-idea="${idea.id}">刪除</button>
           </div>
@@ -1893,9 +1907,18 @@ function renderIdeas() {
     event.stopPropagation();
     deleteKeywordForIdea(button.dataset.deleteIdeaKeyword, button.dataset.keywordWord);
   }));
+  $$("[data-review-idea]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleIdeaReviewed(button.dataset.reviewIdea);
+  }));
   $$("[data-select-idea]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
     const id = button.dataset.selectIdea;
+    const idea = state.ideas.find((item) => item.id === id);
+    if (!isIdeaReviewed(idea)) {
+      toast("先檢查關鍵詞並按 ✓，再帶入歌詞");
+      return;
+    }
     if (state.selectedIdeaIds.has(id)) state.selectedIdeaIds.delete(id);
     else {
       state.selectedIdeaIds.add(id);
@@ -1961,7 +1984,9 @@ function addKeywordToIdeaByPrompt(ideaId) {
   }
   state.deletedKeywords.delete(word);
   idea.keywords = mergeKeywordLists([word], getIdeaKeywords(idea));
-  finishKeywordMutation("這條靈感的關鍵詞已加入");
+  idea.reviewed = false;
+  state.selectedIdeaIds.delete(idea.id);
+  finishKeywordMutation("關鍵詞已加入，請按 ✓ 確認後再帶入歌詞");
 }
 
 function editKeywordForIdeaByPrompt(ideaId, oldWord) {
@@ -1981,16 +2006,20 @@ function editKeywordForIdeaByPrompt(ideaId, oldWord) {
     state.selectedLyricKeywords.add(nextWord);
   }
   state.deletedKeywords.delete(nextWord);
-  finishKeywordMutation("這條靈感的關鍵詞已更新");
+  idea.reviewed = false;
+  state.selectedIdeaIds.delete(idea.id);
+  finishKeywordMutation("關鍵詞已更新，請按 ✓ 確認後再帶入歌詞");
 }
 
 function deleteKeywordForIdea(ideaId, word) {
   const idea = state.ideas.find((item) => item.id === ideaId);
   if (!idea) return;
   idea.keywords = getIdeaKeywords(idea).filter((item) => item !== word);
+  idea.reviewed = false;
+  state.selectedIdeaIds.delete(idea.id);
   rebuildKeywordMap();
   if (!state.keywordMap.has(word)) state.selectedLyricKeywords.delete(word);
-  finishKeywordMutation("這條靈感的關鍵詞已刪除", { alreadyRebuilt: true });
+  finishKeywordMutation("這條靈感已改回草稿，請重新確認關鍵詞", { alreadyRebuilt: true });
 }
 
 function finishKeywordMutation(message, { alreadyRebuilt = false } = {}) {
@@ -2003,6 +2032,27 @@ function finishKeywordMutation(message, { alreadyRebuilt = false } = {}) {
   updatePrompt();
   updateProgress();
   toast(message);
+}
+
+function toggleIdeaReviewed(ideaId) {
+  const idea = state.ideas.find((item) => item.id === ideaId);
+  if (!idea) return;
+  if (isIdeaReviewed(idea)) {
+    idea.reviewed = false;
+    state.selectedIdeaIds.delete(idea.id);
+    rebuildKeywordMap();
+    finishKeywordMutation("已改回草稿，這條靈感暫時不會帶入歌詞", { alreadyRebuilt: true });
+    return;
+  }
+  const keywords = getIdeaKeywords(idea);
+  if (!keywords.length) {
+    toast("請至少保留一個關鍵詞，再按 ✓ 確認");
+    return;
+  }
+  idea.reviewed = true;
+  state.lastIdeaId = idea.id;
+  rebuildKeywordMap();
+  finishKeywordMutation("關鍵詞已確認，現在可以選中帶入歌詞", { alreadyRebuilt: true });
 }
 
 function addKeywordByPrompt() {
@@ -2019,7 +2069,9 @@ function addKeywordByPrompt() {
   }
   state.deletedKeywords.delete(word);
   targetIdea.keywords = mergeKeywordLists([word], getIdeaKeywords(targetIdea));
-  finishKeywordMutation("關鍵詞已加入");
+  targetIdea.reviewed = false;
+  state.selectedIdeaIds.delete(targetIdea.id);
+  finishKeywordMutation("關鍵詞已加入，請按 ✓ 確認後再帶入歌詞");
 }
 
 function editKeywordByPrompt(oldWord) {
@@ -2031,8 +2083,13 @@ function editKeywordByPrompt(oldWord) {
     return;
   }
   state.ideas.forEach((idea) => {
+    const hadWord = getIdeaKeywords(idea).includes(oldWord);
     idea.keywords = getIdeaKeywords(idea).map((word) => word === oldWord ? nextWord : word);
     idea.keywords = mergeKeywordLists(idea.keywords);
+    if (hadWord) {
+      idea.reviewed = false;
+      state.selectedIdeaIds.delete(idea.id);
+    }
   });
   if (state.selectedLyricKeywords.has(oldWord)) {
     state.selectedLyricKeywords.delete(oldWord);
@@ -2047,9 +2104,14 @@ function deleteKeywordEverywhere(word) {
   state.deletedKeywords.add(word);
   state.selectedLyricKeywords.delete(word);
   state.ideas.forEach((idea) => {
+    const hadWord = getIdeaKeywords(idea).includes(word);
     idea.keywords = getIdeaKeywords(idea).filter((item) => item !== word);
+    if (hadWord) {
+      idea.reviewed = false;
+      state.selectedIdeaIds.delete(idea.id);
+    }
   });
-  finishKeywordMutation("關鍵詞已刪除");
+  finishKeywordMutation("關鍵詞已刪除；相關靈感已改回草稿");
 }
 
 function getKeywordTargetIdea() {
@@ -2076,10 +2138,11 @@ function restoreIdeas() {
       ...idea,
       moods: (idea.moods || (idea.mood ? [idea.mood] : [])).map((mood) => mood === LEGACY_TRIUMPH_LABEL ? "成就感" : mood),
       keywords: Array.isArray(idea.keywords) ? idea.keywords : extractKeywords(idea.text || ""),
+      reviewed: idea.reviewed ?? (payload.selectedIdeaIds || []).includes(idea.id),
       updatedAt: idea.updatedAt || idea.createdAt,
       history: idea.history || []
     }));
-    state.selectedIdeaIds = new Set((payload.selectedIdeaIds || []).filter((id) => state.ideas.some((idea) => idea.id === id)));
+    state.selectedIdeaIds = new Set((payload.selectedIdeaIds || []).filter((id) => state.ideas.some((idea) => idea.id === id && isIdeaReviewed(idea))));
     state.deletedKeywords = new Set(payload.deletedKeywords || []);
     rebuildKeywordMap();
   } catch (error) {
@@ -2142,17 +2205,13 @@ function getEmotionPromptLine(set) {
 }
 
 function getSelectedIdeas() {
-  const selected = state.ideas.filter((idea) => state.selectedIdeaIds.has(idea.id));
-  if (selected.length) return selected;
-  const focused = getFocusedIdea();
-  return focused ? [focused] : [];
+  return state.ideas.filter((idea) => isIdeaReviewed(idea) && state.selectedIdeaIds.has(idea.id));
 }
 
 function getLyricsIdeaKeywords() {
   const ideas = getSelectedIdeas();
   const words = new Set();
   ideas.forEach((idea) => getIdeaKeywords(idea).forEach((word) => words.add(word)));
-  if (!words.size) [...state.keywordMap.keys()].forEach((word) => words.add(word));
   return [...words];
 }
 
@@ -2160,13 +2219,27 @@ function normalizeLyricWord(word) {
   return String(word || "").split(":")[0].trim();
 }
 
-function getSelectedLyricWords({ fallback = false } = {}) {
-  const selected = [...state.selectedLyricKeywords, ...state.selectedReferenceWords]
+function getSelectedIdeaKeywordWords() {
+  const available = new Set(getLyricsIdeaKeywords());
+  return [...state.selectedLyricKeywords]
+    .map(normalizeLyricWord)
+    .filter((word) => word && available.has(word));
+}
+
+function getSelectedReferenceWordList() {
+  return [...state.selectedReferenceWords]
     .map(normalizeLyricWord)
     .filter(Boolean);
-  const unique = [...new Set(selected)];
-  if (unique.length || !fallback) return unique;
-  return [...state.keywordMap.keys()].slice(0, 12);
+}
+
+function getSelectedLyricWords({ includeReferences = true } = {}) {
+  const selected = [
+    ...getSelectedIdeaKeywordWords(),
+    ...(includeReferences ? getSelectedReferenceWordList() : [])
+  ]
+    .map(normalizeLyricWord)
+    .filter(Boolean);
+  return [...new Set(selected)];
 }
 
 function recommendLyrics() {
@@ -2174,18 +2247,82 @@ function recommendLyrics() {
   const bankKey = getLyricBankKey(language);
   const bank = LYRIC_BANKS[bankKey] || LYRIC_BANKS["中文"];
   const rhymeKey = ($("#rhymeInput").value.trim() || "default").toLowerCase();
-  const rhymes = bank.rhymes[rhymeKey] || Object.entries(bank.rhymes).find(([key]) => rhymeKey.includes(key))?.[1] || bank.rhymes.default;
+  const baseRhymes = bank.rhymes[rhymeKey] || Object.entries(bank.rhymes).find(([key]) => rhymeKey.includes(key))?.[1] || bank.rhymes.default;
   const emotionLabels = getSelectedEmotionLabels(state.lyricMoods);
-  const keywords = getLyricsIdeaKeywords().slice(0, 8);
+  const narrator = $("#narratorInput").value;
+  const style = $("#lyricStyle").value;
+  const draft = $("#lyricsDraft").value || "";
+  const ideaKeywords = new Set(getLyricsIdeaKeywords().map(normalizeLyricWord));
+  const selectedKeywords = new Set(getSelectedIdeaKeywordWords().map(normalizeLyricWord));
+  const rhymes = uniqueReferenceItems([
+    ...buildEmotionRhymes(emotionLabels, language),
+    ...buildDirectionRhymes(narrator, style, language),
+    ...baseRhymes
+  ]).slice(0, 12);
   const emotionImages = buildEmotionImages(emotionLabels, language);
-  const images = [...keywords, ...emotionImages, ...bank.images].filter(Boolean).slice(0, 12);
-  const synonyms = [...buildEmotionSynonyms(emotionLabels, language), ...bank.synonyms].slice(0, 9);
+  const images = uniqueReferenceItems([
+    ...emotionImages,
+    ...buildDirectionImages(narrator, style, language),
+    ...bank.images
+  ]).filter((word) => !isIdeaKeywordReference(word, ideaKeywords) && !isIdeaKeywordReference(word, selectedKeywords)).slice(0, 12);
+  const synonyms = uniqueReferenceItems([
+    ...buildDraftSynonyms(draft, language),
+    ...buildEmotionSynonyms(emotionLabels, language),
+    ...buildDirectionSynonyms(narrator, style, language),
+    ...bank.synonyms
+  ]).slice(0, 12);
   state.lyricRecommendations = { rhymes, images, synonyms };
   renderChipList("#rhymeList", rhymes, "rhyme");
   renderChipList("#imageList", images, "image");
   renderChipList("#synonymList", synonyms, "synonym");
+  renderSelectedKeywordDisplays();
   renderLyricDirection();
   updatePrompt();
+}
+
+function uniqueReferenceItems(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = normalizeLyricWord(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function isIdeaKeywordReference(item, keywordSet) {
+  const word = normalizeLyricWord(item);
+  if (!word) return false;
+  return [...keywordSet].some((keyword) => keyword && (word === keyword || word.includes(keyword) || keyword.includes(word)));
+}
+
+function buildEmotionRhymes(emotions, language) {
+  const joined = emotions.join(",");
+  const zh = [];
+  if (/喜悦|興奮|成就感|滿足/.test(joined)) zh.push("亮", "浪", "上", "光", "開");
+  if (/悲傷|懷舊|同理/.test(joined)) zh.push("海", "白", "來", "在", "空");
+  if (/浪漫|渴望|性慾/.test(joined)) zh.push("愛", "靠", "燒", "抱", "要");
+  if (/焦慮|恐懼|恐怖|困惑/.test(joined)) zh.push("等", "冷", "燈", "醒", "停");
+  if (/憤怒|厭惡|忮忌/.test(joined)) zh.push("破", "火", "錯", "鎖", "躲");
+  if (/平靜|欣賞|敬畏|著迷/.test(joined)) zh.push("慢", "岸", "藍", "安", "看");
+  if (!zh.length) return [];
+  const bankKey = getLyricBankKey(language);
+  if (bankKey === "English") return zh.map((item) => `${item}: light / night / high`);
+  if (bankKey === "日本語") return zh.map((item) => `${item}: あい / ない / たい`);
+  if (bankKey === "한국어") return zh.map((item) => `${item}: 밤 / 맘 / 다음`);
+  return zh;
+}
+
+function buildDirectionRhymes(narrator, style, language) {
+  const zh = [];
+  if (/第二人稱|低聲/.test(narrator)) zh.push("你", "裡", "聽");
+  if (/回憶|多年/.test(narrator)) zh.push("年", "遠", "前");
+  if (/雙人|對話/.test(narrator)) zh.push("問", "等", "認");
+  if (/宣言|強節奏/.test(style)) zh.push("破", "做", "我");
+  if (/幽默|自嘲/.test(style)) zh.push("怪", "壞", "快");
+  const bankKey = getLyricBankKey(language);
+  if (bankKey === "中文") return zh;
+  return zh.map((item) => `${item} (${language} tail)`);
 }
 
 function buildEmotionImages(emotions, language) {
@@ -2236,6 +2373,24 @@ function translateImage(image, language) {
   return map[image]?.[language] || image;
 }
 
+function buildDirectionImages(narrator, style, language) {
+  const zh = [];
+  if (/第一人稱|第二人稱|低語/.test(narrator)) zh.push("壓低的聲音", "只亮一盞燈的房間");
+  if (/旁觀者|電影/.test(narrator)) zh.push("遠景裡的人影", "車窗倒影");
+  if (/回憶|多年/.test(narrator)) zh.push("褪色票根", "舊手機備忘錄");
+  if (/雙人|對話/.test(narrator)) zh.push("兩杯沒喝完的水", "對面空著的座位");
+  if (/群像/.test(narrator)) zh.push("散場後的街口", "一起亮起的手機燈");
+  if (/詩性|留白/.test(style)) zh.push("沒有署名的風", "慢慢熄掉的藍");
+  if (/電影|敘事/.test(style)) zh.push("鏡頭外的腳步聲", "轉角後的光");
+  if (/宣言|強節奏/.test(style)) zh.push("踩碎的影子", "抬頭的瞬間");
+  if (/幽默|自嘲/.test(style)) zh.push("過期的幸運籤", "歪掉的路牌");
+  const bankKey = getLyricBankKey(language);
+  if (bankKey === "English") return zh.map((item) => translateImage(item, "English"));
+  if (bankKey === "日本語") return zh.map((item) => translateImage(item, "日本語"));
+  if (bankKey === "한국어") return zh.map((item) => translateImage(item, "한국어"));
+  return zh;
+}
+
 function buildEmotionSynonyms(emotions, language) {
   const joined = emotions.join(",");
   const zh = [];
@@ -2247,6 +2402,40 @@ function buildEmotionSynonyms(emotions, language) {
   if (/平靜/.test(joined)) zh.push("平靜: 定錨 / 呼吸 / 回到身體");
   if (/渴望/.test(joined)) zh.push("渴望: 缺口 / 索求 / 靠近");
   if (!zh.length) zh.push("想念: 惦記 / 牽掛 / 回望");
+  if (language === "中文") return zh;
+  return zh.map((item) => `${item} (${language})`);
+}
+
+function buildDirectionSynonyms(narrator, style, language) {
+  const zh = [];
+  if (/第一人稱/.test(narrator)) zh.push("坦白: 直說 / 承認 / 放下防備");
+  if (/第二人稱/.test(narrator)) zh.push("呼喚: 你聽 / 你看 / 你別走");
+  if (/旁觀者|電影/.test(narrator)) zh.push("描述: 看見 / 經過 / 留在鏡頭裡");
+  if (/回憶/.test(narrator)) zh.push("回看: 那時 / 後來 / 原來");
+  if (/宣言|強節奏/.test(style)) zh.push("推進: 撞開 / 重來 / 不退");
+  if (/冷感/.test(style)) zh.push("克制: 不問 / 不說 / 不回頭");
+  if (/幽默/.test(style)) zh.push("自嘲: 算了 / 好吧 / 又搞砸");
+  if (!zh.length) return [];
+  if (language === "中文") return zh;
+  return zh.map((item) => `${item} (${language})`);
+}
+
+function buildDraftSynonyms(text, language) {
+  const source = String(text || "");
+  const zh = [];
+  const detectors = [
+    [/想|念|惦記|惦记/u, "想念: 惦記 / 掛住 / 回望"],
+    [/等|等待|等到/u, "等待: 停留 / 守著 / 還沒走"],
+    [/走|離開|离开|告別|告别/u, "離開: 鬆手 / 轉身 / 遠去"],
+    [/怕|恐|冷|慌/u, "害怕: 發冷 / 失重 / 不敢看"],
+    [/愛|爱|喜歡|喜欢/u, "愛: 靠近 / 偏愛 / 心軟"],
+    [/痛|哭|傷|伤/u, "難過: 下沉 / 破口 / 空掉"],
+    [/夢|梦|夜|星/u, "夜色: 夢境 / 星光 / 未眠"]
+  ];
+  detectors.forEach(([pattern, phrase]) => {
+    if (pattern.test(source)) zh.push(phrase);
+  });
+  if (!zh.length) return [];
   if (language === "中文") return zh;
   return zh.map((item) => `${item} (${language})`);
 }
@@ -2294,7 +2483,7 @@ function renderLyricsIdeaBrief() {
         }).join("") : "<span>等待篩選關鍵詞</span>"}</div>
       </article>`;
     }).join("")
-    : `<p>還沒有靈感原文。先到靈感頁記下一段話，或在靈感原文裡按「選中」。</p>`;
+    : `<p>還沒有可帶入的靈感。先到靈感頁把關鍵詞篩完並按 ✓，再按「選中」。</p>`;
   target.innerHTML = `<h3>從靈感帶入</h3>
     <div class="linked-ideas">${ideaHtml}</div>`;
   target.querySelectorAll("[data-lyric-keyword]").forEach((button) => {
@@ -2303,7 +2492,28 @@ function renderLyricsIdeaBrief() {
       if (state.selectedLyricKeywords.has(word)) state.selectedLyricKeywords.delete(word);
       else state.selectedLyricKeywords.add(word);
       renderLyricsIdeaBrief();
+      renderSelectedKeywordDisplays();
       updatePrompt();
+    });
+  });
+  renderSelectedKeywordDisplays();
+}
+
+function renderSelectedKeywordDisplays() {
+  const words = getSelectedIdeaKeywordWords();
+  const html = words.length
+    ? words.map((word) => `<button class="linked-keyword-choice selected" type="button" data-selected-keyword-remove="${escapeHtml(word)}">${escapeHtml(word)}</button>`).join("")
+    : `<span class="empty-selection">尚未選詞</span>`;
+  ["#selectedKeywordShelf", "#selectedKeywordList"].forEach((selector) => {
+    const target = $(selector);
+    if (!target) return;
+    target.innerHTML = html;
+    target.querySelectorAll("[data-selected-keyword-remove]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.selectedLyricKeywords.delete(button.dataset.selectedKeywordRemove);
+        renderLyricsIdeaBrief();
+        updatePrompt();
+      });
     });
   });
 }
@@ -2421,12 +2631,114 @@ function romanizeHangul(text) {
   }).join(" ");
 }
 
+const STRUCTURE_GUIDE_MARKER = "[段落寫作指引]";
+
+function maybeInsertStructureGuide() {
+  const draft = $("#lyricsDraft");
+  if (!draft) return;
+  const current = draft.value.trim();
+  if (!current || current.startsWith(STRUCTURE_GUIDE_MARKER)) {
+    draft.value = buildStructureGuide();
+    state.lyricsDone = false;
+  }
+}
+
+function buildStructureGuide() {
+  const structure = $("#songStructure").value;
+  const sections = parseStructureSections(structure);
+  const syllables = state.analysis?.notes?.length ? buildSyllableAdvice(state.analysis) : "每句約 7-11 字，副歌可以更短、更容易重複";
+  const lines = sections.map((section) => {
+    const label = sectionLabel(section);
+    return `${label}：推薦 ${sectionLengthHint(section)}；${sectionWritingHint(section)}`;
+  });
+  return `${STRUCTURE_GUIDE_MARKER}\n${lines.join("\n-----\n")}\n\n節奏參考：${syllables}`;
+}
+
+function parseStructureSections(structure) {
+  const raw = String(structure || "").trim();
+  if (!raw) return ["自由段落"];
+  return raw.split(/\s*-\s*/).map((item) => item.trim()).filter(Boolean);
+}
+
+function sectionLabel(section) {
+  if (/pre/i.test(section)) return "副歌前";
+  if (/chorus|hook/i.test(section)) return "副歌";
+  if (/verse/i.test(section)) return "主歌";
+  if (/bridge/i.test(section)) return "橋段";
+  if (/intro/i.test(section)) return "前奏";
+  if (/outro/i.test(section)) return "尾奏";
+  if (/drop/i.test(section)) return "Drop";
+  if (/^a/i.test(section)) return section.includes("'") ? "主題變奏" : "主題段";
+  if (/^b/i.test(section)) return "轉折段";
+  return section;
+}
+
+function sectionLengthHint(section) {
+  if (/chorus|hook/i.test(section)) return "2-4 行，留一句可重複 hook";
+  if (/pre/i.test(section)) return "2 行，把情緒推到副歌";
+  if (/verse/i.test(section)) return "4 行，先放具體畫面";
+  if (/bridge/i.test(section)) return "2-4 行，換角度或說出反轉";
+  if (/intro|outro/i.test(section)) return "1-2 行，可用短句或哼唱";
+  if (/drop/i.test(section)) return "少字，留空間給節奏";
+  return "2-4 行，按旋律長短調整";
+}
+
+function sectionWritingHint(section) {
+  if (/chorus|hook/i.test(section)) return "把核心主題變成最容易記住的一句";
+  if (/pre/i.test(section)) return "用疑問、轉折或一句快說出口的話";
+  if (/verse/i.test(section)) return "人物、地點、動作比抽象情緒更好用";
+  if (/bridge/i.test(section)) return "可以改視角、改時間，讓最後副歌更有理由";
+  if (/drop/i.test(section)) return "可以只放關鍵詞、短呼吸或重複尾音";
+  return "先保留自然語氣，再慢慢壓成可唱的句子";
+}
+
+function structureDraftLyrics() {
+  const draft = $("#lyricsDraft");
+  const current = draft.value.trim();
+  if (!current || current.startsWith(STRUCTURE_GUIDE_MARKER)) {
+    draft.value = buildStructureGuide();
+  } else {
+    draft.value = organizeExistingLyrics(current);
+  }
+  state.lyricsDone = false;
+  recommendLyrics();
+  updateCompletionButtons();
+  updatePrompt();
+  updateProgress();
+  toast("已按段落骨架整理草稿");
+}
+
+function organizeExistingLyrics(text) {
+  const sections = parseStructureSections($("#songStructure").value);
+  const cleanLines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^\[.+\]$/.test(line) && line !== "-----");
+  if (!cleanLines.length) return buildStructureGuide();
+  const chunkSize = Math.max(1, Math.ceil(cleanLines.length / Math.max(sections.length, 1)));
+  const selectedWords = getSelectedIdeaKeywordWords();
+  const theme = $("#themeInput").value.trim() || inferTheme();
+  return sections.map((section, index) => {
+    const label = sectionLabel(section);
+    const chunk = cleanLines.slice(index * chunkSize, (index + 1) * chunkSize);
+    let body = chunk.join("\n");
+    if (!body && /chorus|hook/i.test(section)) {
+      body = `核心句：${selectedWords[0] || theme}\n重複句：${selectedWords[1] || "把情緒唱得更直接"}`;
+    } else if (!body && /verse/i.test(section)) {
+      body = `延續前一段畫面，換一個動作或時間\n保留 ${selectedWords[index % Math.max(selectedWords.length, 1)] || theme} 作為線索`;
+    } else if (!body) {
+      body = "這裡可以留白，或用一兩句把情緒轉向";
+    }
+    return `[${label}]\n${body}`;
+  }).join("\n\n-----\n\n");
+}
+
 function draftLyrics() {
   recommendLyrics();
   const lang = $("#targetLang").value;
   const theme = $("#themeInput").value.trim() || "尚未命名的心事";
-  const words = getSelectedLyricWords({ fallback: true }).slice(0, 8);
-  const selectedReference = getSelectedLyricWords().filter((word) => !state.selectedLyricKeywords.has(word));
+  const words = getSelectedLyricWords({ includeReferences: false }).slice(0, 8);
+  const selectedReference = getSelectedReferenceWordList();
   const [imageA, imageB, imageC] = [...selectedReference, ...state.lyricRecommendations.images];
   const [rhymeA, rhymeB] = [...selectedReference, ...state.lyricRecommendations.rhymes];
   const emotions = getSelectedEmotionLabels(state.lyricMoods).join(" / ");
@@ -2718,7 +3030,7 @@ function scheduleMelodyMotif(ctx, startTime) {
     osc.type = "sine";
     osc.frequency.value = midiToFrequency(note.midi);
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.11, start + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.24, start + 0.03);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     osc.connect(gain).connect(getAudioDestination());
     osc.start(start);
@@ -2845,7 +3157,7 @@ function renderPromptNotes() {
   const target = $("#promptSystemNotes");
   if (!target) return;
   const ideas = getSelectedIdeas();
-  const ideaKeywords = getSelectedLyricWords();
+  const ideaKeywords = getSelectedLyricWords({ includeReferences: false });
   const lyricSettings = [
     ["風格", getChoiceLabel(CHOICES.lyricStyle, $("#lyricStyle").value)],
     ["視角", getChoiceLabel(CHOICES.narrator, $("#narratorInput").value)],
@@ -2910,7 +3222,7 @@ function renderPromptNotes() {
       <h3>靈感 <small>${escapeHtml(ideas.length ? `${ideas.length} 條選中` : "空")}</small></h3>
       <div class="summary-block is-clickable" data-summary-jump="inspiration" data-summary-selector="#ideaList">
         <span>選中的原文</span>
-        <strong>${ideas.length ? ideas.map((idea) => escapeHtml(idea.text)).join("<br><br>") : "尚未加入靈感"}</strong>
+        <div class="summary-idea-list">${ideas.length ? ideas.map((idea) => `<article>${escapeHtml(idea.text)}</article>`).join("") : "<article>尚未選中已確認的靈感</article>"}</div>
       </div>
       <div class="summary-block is-clickable" data-summary-jump="lyrics" data-summary-selector="#lyricsIdeaBrief">
         <span>歌詞頁已選關鍵詞</span>
@@ -3005,7 +3317,7 @@ function buildPrompt(format) {
   const dialect = $("#dialectInput").value;
   const theme = $("#themeInput").value.trim() || inferTheme();
   const lyrics = $("#lyricsDraft").value.trim();
-  const keywords = getSelectedLyricWords({ fallback: true }).slice(0, 12);
+  const keywords = getSelectedLyricWords({ includeReferences: false }).slice(0, 12);
   const chordLine = hasPlayableChord()
     ? state.selectedChord.chords.join(" - ")
     : (state.selectedChord?.empty ? "none (explicitly no chord reference)" : "none");
@@ -3064,7 +3376,7 @@ Core concept:
 - Singing viewpoint: ${narrator}
 - Lyric style: ${style}
 - Song structure: ${structure}
-- Keywords and imagery: ${keywords.length ? keywords.join(", ") : state.lyricRecommendations.images.join(", ")}
+- Selected inspiration keywords: ${keywords.length ? keywords.join(", ") : "none selected"}
 
 Melody and rhythm:
 - Use this topline reference: ${melody}
@@ -3126,12 +3438,11 @@ function buildPluginData() {
       ].join("\n")
     : `旋律：尚未分析\n字數建議：${$("#syllableAdvice").textContent}`;
   const selectedIdeas = getSelectedIdeas();
-  const selectedLyricWords = getSelectedLyricWords();
+  const selectedLyricWords = getSelectedLyricWords({ includeReferences: false });
   const inspiration = [
     `情緒：${selectedIdeas.flatMap((idea) => idea.moods || []).join(" / ") || getSelectedEmotionLabels(state.selectedMoods).join(" / ")}`,
     `靈感原文：${selectedIdeas.map((idea) => idea.text).join(" ｜ ") || "尚未填寫"}`,
-    `歌詞頁選中關鍵詞：${selectedLyricWords.join("、") || "尚未選詞"}`,
-    `完整詞庫：${[...state.keywordMap.keys()].slice(0, 18).join("、") || "尚未建立"}`
+    `歌詞頁選中關鍵詞：${selectedLyricWords.join("、") || "尚未選詞"}`
   ].join("\n");
   const lyrics = [
     `主題：${$("#themeInput").value.trim() || inferTheme()}`,

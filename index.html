@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MotifLab - AI 音樂創作工作台</title>
-    <link rel="stylesheet" href="styles.css?v=20260531-ui21" />
+    <link rel="stylesheet" href="styles.css?v=20260531-ui22" />
   </head>
   <body>
     <div class="app-shell">
@@ -244,49 +244,14 @@
             </div>
 
             <div class="lyrics-layout page-stack">
-              <section class="tool-panel lyrics-idea-panel">
-                <aside class="linked-notes" id="lyricsIdeaBrief" aria-label="靈感帶入"></aside>
-              </section>
-
-              <section class="tool-panel lyrics-language-panel">
-                <div class="lyrics-language-row">
-                  <div>
-                    <label>跨語詞庫</label>
-                    <input id="targetLang" type="hidden" value="中文" />
-                    <div class="choice-grid mini" id="languageChoices" aria-label="跨語詞庫"></div>
-                  </div>
-                  <div>
-                    <label>發音口味</label>
-                    <input id="dialectInput" type="hidden" value="國語發音" />
-                    <div class="choice-grid mini" id="dialectChoices"></div>
-                  </div>
+              <section class="tool-panel lyrics-left-panel">
+                <div class="lyrics-idea-row">
+                  <aside class="linked-notes" id="lyricsIdeaBrief" aria-label="靈感帶入"></aside>
+                  <aside class="selected-keyword-panel" aria-label="已選關鍵詞">
+                    <h3>已選關鍵詞</h3>
+                    <div id="selectedKeywordShelf" class="selected-keyword-shelf"></div>
+                  </aside>
                 </div>
-                <div class="lyrics-rhyme-row">
-                  <div>
-                    <label for="rhymeInput">押韻尾音 <span class="tip" data-tip="一句歌詞最後相近的聲音。例如中文 ai 可以押「愛、來、海」。">?</span></label>
-                    <input id="rhymeInput" type="text" placeholder="ang / ai / ight / あい / 아" />
-                  </div>
-                  <section class="reference-panel">
-                    <h3>參考詞</h3>
-                    <div class="recommendations">
-                      <div>
-                        <h3>押韻詞</h3>
-                        <div id="rhymeList" class="chip-list"></div>
-                      </div>
-                      <div>
-                        <h3>意象</h3>
-                        <div id="imageList" class="chip-list"></div>
-                      </div>
-                      <div>
-                        <h3>同義替換</h3>
-                        <div id="synonymList" class="chip-list"></div>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-              </section>
-
-              <section class="tool-panel lyrics-direction-panel">
                 <div class="direction-columns">
                   <div class="direction-section">
                     <label>演唱視角</label>
@@ -306,22 +271,66 @@
                 </div>
               </section>
 
-              <section class="tool-panel lyric-editor lyrics-writing-panel">
+              <section class="tool-panel lyric-editor lyrics-writing-panel lyrics-right-panel">
+                <div class="lyrics-language-row">
+                  <div>
+                    <label>跨語詞庫</label>
+                    <input id="targetLang" type="hidden" value="中文" />
+                    <div class="choice-grid mini" id="languageChoices" aria-label="跨語詞庫"></div>
+                  </div>
+                  <div>
+                    <label>發音口味</label>
+                    <input id="dialectInput" type="hidden" value="國語發音" />
+                    <div class="choice-grid mini" id="dialectChoices"></div>
+                  </div>
+                </div>
                 <label for="themeInput">核心主題</label>
                 <input id="themeInput" type="text" placeholder="失眠後才說出口的告別" />
-                <div class="field-head">
+                <div class="field-head lyric-mood-head">
                   <h3>歌詞情緒</h3>
-                  <span>可多選，選擇後影響後續背景色彩</span>
+                  <span>影響參考詞與背景色彩</span>
                 </div>
                 <div class="mood-picker compact" id="lyricMoodPicker" aria-label="歌詞情緒分類"></div>
-                <div class="list-head">
-                  <h3>歌詞草稿</h3>
-                  <button id="draftLyricsButton" class="ghost-action" type="button">
-                    <span aria-hidden="true">▤</span>生成骨架
-                  </button>
-                  <button id="lyricsDoneButton" class="done-action" type="button" title="標記歌詞草稿完成" aria-label="標記歌詞草稿完成">✓</button>
+                <label for="rhymeInput">押韻尾音 <span class="tip" data-tip="一句歌詞最後相近的聲音。例如中文 ai 可以押「愛、來、海」。">?</span></label>
+                <input id="rhymeInput" type="text" placeholder="ang / ai / ight / あい / 아" />
+                <div class="lyrics-draft-layout">
+                  <section class="reference-panel">
+                    <h3>參考詞</h3>
+                    <div class="recommendations">
+                      <div>
+                        <h3>押韻詞</h3>
+                        <div id="rhymeList" class="chip-list"></div>
+                      </div>
+                      <div>
+                        <h3>已選關鍵詞</h3>
+                        <div id="selectedKeywordList" class="chip-list selected-keyword-list"></div>
+                      </div>
+                      <div>
+                        <h3>意象</h3>
+                        <div id="imageList" class="chip-list"></div>
+                      </div>
+                      <div>
+                        <h3>同義替換</h3>
+                        <div id="synonymList" class="chip-list"></div>
+                      </div>
+                    </div>
+                  </section>
+                  <div class="lyrics-draft-editor">
+                    <div class="list-head">
+                      <h3>歌詞草稿</h3>
+                      <div class="action-row compact-actions">
+                        <button id="structureLyricsButton" class="ghost-action" type="button">
+                          <span aria-hidden="true">↳</span>按骨架整理
+                        </button>
+                        <button id="draftLyricsButton" class="ghost-action" type="button">
+                          <span aria-hidden="true">▤</span>生成骨架
+                        </button>
+                        <button id="lyricsDoneButton" class="done-action" type="button" title="標記歌詞草稿完成" aria-label="標記歌詞草稿完成">✓</button>
+                      </div>
+                    </div>
+                    <textarea id="lyricsDraft" rows="18" placeholder="選擇段落骨架後，這裡會先出現主歌/副歌的寫作指引；也可以直接自己寫。"></textarea>
+                  </div>
                 </div>
-                <textarea id="lyricsDraft" rows="15" placeholder="先用上方選項整理方向，再生成骨架或自己寫。"></textarea>
               </section>
             </div>
           </section>
@@ -434,6 +443,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <button class="floating-jump" id="floatingJumpButton" type="button" hidden>下一頁</button>
     <button class="floating-return" id="returnPromptButton" type="button" hidden>返回提示詞</button>
-    <script src="app.js?v=20260531-ui21"></script>
+    <script src="app.js?v=20260531-ui22"></script>
   </body>
 </html>
