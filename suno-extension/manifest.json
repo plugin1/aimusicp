@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MotifLab for Suno",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "在 Suno 使用過程中查看、編輯與複製 MotifLab 的創作結論詞。",
   "permissions": ["storage", "clipboardWrite", "activeTab", "scripting"],
   "host_permissions": [

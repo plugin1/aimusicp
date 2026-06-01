@@ -2879,6 +2879,34 @@ function summarizeSave(snapshot) {
   ].join(" · ");
 }
 
+function renderSaveBadges(snapshot) {
+  const chord = restoreChordChoice(snapshot?.selectedChord);
+  const drum = restoreDrumChoice(snapshot?.selectedDrum);
+  const badges = [
+    snapshot?.analysis?.notes?.length ? "旋律" : "",
+    snapshot?.selectedIdeaIds?.length ? `${snapshot.selectedIdeaIds.length} 靈感` : "",
+    chord ? "和弦" : "",
+    drum ? "鼓點" : "",
+    snapshot?.fields?.lyricsDraft?.trim() ? "歌詞" : ""
+  ].filter(Boolean);
+  if (!badges.length) return `<div class="save-badges"><span>空白</span></div>`;
+  return `<div class="save-badges">${badges.slice(0, 4).map((badge) => `<span>${escapeHtml(badge)}</span>`).join("")}</div>`;
+}
+
+function formatSaveTime(value) {
+  if (!value) return "--";
+  try {
+    return new Intl.DateTimeFormat("zh-Hant", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(value));
+  } catch (error) {
+    return "--";
+  }
+}
+
 function renderSaveDock() {
   const dock = $("#saveDock");
   if (!dock) return;
@@ -2891,48 +2919,56 @@ function renderSaveDock() {
     const slot = slots[id];
     if (!slot?.snapshot) {
       return `<article class="save-slot-card empty">
-        <span>空存檔欄 ${id}</span>
-        <strong>準備保存</strong>
-        <small>命名後會變成實色項目</small>
-        <button type="button" data-save-action="save-slot" data-slot-id="${id}">存到這裡</button>
+        <div class="save-card-top">
+          <span>欄 ${id}</span>
+          <small>空</small>
+        </div>
+        <strong>未使用</strong>
+        <button class="has-tip" data-tip="把目前這首作品手動保存到這一欄，之後可以覆蓋、命名或收藏。" type="button" data-save-action="save-slot" data-slot-id="${id}">保存</button>
       </article>`;
     }
     return `<article class="save-slot-card filled">
-      <span>手動存檔 ${id}</span>
+      <div class="save-card-top">
+        <span>欄 ${id}</span>
+        <small>${formatSaveTime(slot.savedAt)}</small>
+      </div>
       <strong>${escapeHtml(slot.name)}</strong>
-      <small>${formatDateTime(slot.savedAt)} · ${escapeHtml(summarizeSave(slot.snapshot))}</small>
+      ${renderSaveBadges(slot.snapshot)}
       <div class="save-card-actions">
-        <button type="button" data-save-action="load-slot" data-slot-id="${id}">讀取</button>
-        <button type="button" data-save-action="save-slot" data-slot-id="${id}">覆蓋</button>
-        <button type="button" data-save-action="rename-slot" data-slot-id="${id}">命名</button>
-        <button type="button" data-save-action="archive-slot" data-slot-id="${id}">收藏</button>
+        <button class="has-tip" data-tip="讀取這個手動存檔。${escapeHtml(summarizeSave(slot.snapshot))}" type="button" data-save-action="load-slot" data-slot-id="${id}">開</button>
+        <button class="has-tip" data-tip="用目前畫面覆蓋這一欄。" type="button" data-save-action="save-slot" data-slot-id="${id}">存</button>
+        <button class="has-tip" data-tip="修改這一欄的名稱。" type="button" data-save-action="rename-slot" data-slot-id="${id}">名</button>
+        <button class="has-tip" data-tip="放入收藏，不再佔用手動欄位。" type="button" data-save-action="archive-slot" data-slot-id="${id}">★</button>
       </div>
     </article>`;
   }).join("");
   const archiveHtml = archives.length
     ? archives.map((record) => `<article class="archive-row">
-        <button type="button" data-save-action="load-archive" data-archive-id="${escapeHtml(record.id)}">
-          <strong>${escapeHtml(record.name)}</strong>
-          <small>${formatDateTime(record.savedAt)}</small>
+        <button class="has-tip" data-tip="讀取收藏作品。${escapeHtml(summarizeSave(record.snapshot))}" type="button" data-save-action="load-archive" data-archive-id="${escapeHtml(record.id)}">
+          <span>${escapeHtml(record.name)}</span>
+          <small>${formatSaveTime(record.savedAt)}</small>
         </button>
       </article>`).join("")
-    : `<p>完成後收藏的作品會折疊在這裡，不佔手動存檔欄。</p>`;
+    : `<p>收藏會收在這裡。</p>`;
   dock.innerHTML = `<div class="save-head">
-      <strong>製作檔案</strong>
-      <small>只保存在此瀏覽器；清除網站資料會刪除。</small>
+      <strong>存檔</strong>
+      <button class="save-help has-tip" data-tip="作品存在此瀏覽器本機。自動存檔會隨修改更新；手動欄位適合保留版本；收藏不佔欄位。清除網站資料會刪除這些內容。" type="button" aria-label="存檔說明">?</button>
     </div>
     <div class="save-primary-actions">
-      <button class="save-main-action" type="button" data-save-action="${hasAuto ? "continue" : "start"}">${hasAuto ? "繼續製作" : "開始製作"}</button>
-      <button type="button" data-save-action="restart">${hasAuto ? "重新製作" : "空白開始"}</button>
+      <button class="save-main-action has-tip" data-tip="${hasAuto ? "讀取離開時的自動存檔。" : "從哼唱系統開始新作品。"}" type="button" data-save-action="${hasAuto ? "continue" : "start"}">${hasAuto ? "繼續" : "開始"}</button>
+      <button class="has-tip" data-tip="清空本次製作並重新開始；靈感庫會保留。" type="button" data-save-action="restart">${hasAuto ? "新作" : "空白"}</button>
     </div>
-    <article class="save-auto-card${hasAuto ? " filled" : ""}">
-      <span>自動存檔</span>
-      <strong>${hasAuto ? escapeHtml(autoSnapshot.name || "自動存檔") : "等待第一次保存"}</strong>
-      <small>${hasAuto ? `${formatDateTime(autoSnapshot.savedAt)} · ${escapeHtml(summarizeSave(autoSnapshot))}` : "每次修改都會更新；回首頁會立即保存一次。"}</small>
+    <article class="save-auto-card${hasAuto ? " filled" : ""} has-tip" data-tip="${hasAuto ? escapeHtml(summarizeSave(autoSnapshot)) : "每次修改會自動更新；回首頁會保存一次大的版本。"}">
+      <div class="save-card-top">
+        <span>自動</span>
+        <small>${hasAuto ? formatSaveTime(autoSnapshot.savedAt) : "待命"}</small>
+      </div>
+      <strong>${hasAuto ? escapeHtml(autoSnapshot.name || "自動存檔") : "尚未保存"}</strong>
+      ${hasAuto ? renderSaveBadges(autoSnapshot) : `<div class="save-badges"><span>待開始</span></div>`}
     </article>
     <div class="save-slot-list">${slotHtml}</div>
     <details class="save-archive">
-      <summary>收藏作品 ${archives.length}</summary>
+      <summary class="has-tip" data-tip="完成或想長期保存的版本可以收藏起來，不佔上面的手動存檔欄。">收藏 ${archives.length}</summary>
       ${archiveHtml}
     </details>`;
 }
@@ -4604,7 +4640,7 @@ function buildPluginData() {
   return {
     meta: {
       app: "MotifLab",
-      version: "20260601-guide1",
+      version: "20260601-saveui1",
       saveName,
       exportedAt,
       autoSavedAt: getAutoSnapshot()?.savedAt || "",
