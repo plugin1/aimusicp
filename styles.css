@@ -204,7 +204,7 @@ textarea:focus {
 .save-dock {
   position: fixed;
   z-index: 3;
-  width: min(238px, calc(100vw - 40px));
+  width: min(300px, calc(100vw - 40px));
   border: 1px solid rgba(17, 17, 17, 0.1);
   border-radius: 8px;
   background:
@@ -241,7 +241,7 @@ textarea:focus {
   transform: translateY(-50%);
   padding: 12px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 body.in-app .home-guide-card,
@@ -249,12 +249,23 @@ body.in-app .save-dock {
   display: none;
 }
 
-.save-dock small {
+.save-head,
+.save-primary-actions,
+.save-slot-list,
+.save-card-actions {
+  display: grid;
+  gap: 7px;
+}
+
+.save-dock small,
+.save-dock span,
+.save-archive p {
   display: block;
   margin-top: 2px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 760;
+  line-height: 1.42;
 }
 
 .save-dock button {
@@ -268,15 +279,73 @@ body.in-app .save-dock {
 }
 
 .save-dock button:hover,
-.save-dock button.has-save {
+.save-main-action,
+.save-slot-card.filled button {
   border-color: #111111;
   background: #ffffff;
 }
 
-.save-slot-grid {
+.save-primary-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: 1.15fr 0.85fr;
+}
+
+.save-main-action {
+  background: #111111 !important;
+  color: #ffffff !important;
+}
+
+.save-auto-card,
+.save-slot-card {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px dashed rgba(17, 17, 17, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.save-auto-card.filled,
+.save-slot-card.filled {
+  border-style: solid;
+  border-color: #111111;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.07);
+}
+
+.save-slot-card.empty {
+  color: var(--muted);
+}
+
+.save-card-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.save-card-actions button {
+  min-height: 30px;
+  padding: 0 4px;
+}
+
+.save-archive {
+  border-top: 1px solid rgba(17, 17, 17, 0.08);
+  padding-top: 4px;
+}
+
+.save-archive summary {
+  color: #111111;
+  font-size: 12px;
+  font-weight: 880;
+  cursor: pointer;
+}
+
+.archive-row {
+  margin-top: 6px;
+}
+
+.archive-row button {
+  width: 100%;
+  text-align: left;
+  padding: 8px;
 }
 
 .map-title {

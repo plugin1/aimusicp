@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MotifLab - AI 音樂創作工作台</title>
-    <link rel="stylesheet" href="styles.css?v=20260531-ui24" />
+    <link rel="stylesheet" href="styles.css?v=20260601-save1" />
   </head>
   <body>
     <div class="app-shell">
@@ -62,22 +62,7 @@
           <p>可以從聲音或文字起手：哼唱整理旋律，靈感整理素材；接著到編曲和歌詞，最後把結論送進提示詞。</p>
         </aside>
 
-        <aside class="save-dock" aria-label="專案存檔">
-          <div>
-            <strong>存檔</strong>
-            <small id="saveSlotStatus">本機保存</small>
-          </div>
-          <button id="continueProjectButton" type="button">接著上次</button>
-          <button id="newProjectButton" type="button">新開一檔</button>
-          <div class="save-slot-grid" aria-label="手動存檔槽">
-            <button type="button" data-load-slot="1">讀 1</button>
-            <button type="button" data-save-slot="1">存 1</button>
-            <button type="button" data-load-slot="2">讀 2</button>
-            <button type="button" data-save-slot="2">存 2</button>
-            <button type="button" data-load-slot="3">讀 3</button>
-            <button type="button" data-save-slot="3">存 3</button>
-          </div>
-        </aside>
+        <aside class="save-dock" id="saveDock" aria-label="專案存檔"></aside>
 
         <div class="project-card">
           <label for="projectTitle">作品名</label>
@@ -465,6 +450,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <button class="floating-jump" id="floatingJumpButton" type="button" hidden>下一頁</button>
     <button class="floating-return" id="returnPromptButton" type="button" hidden>返回提示詞</button>
-    <script src="app.js?v=20260531-ui24"></script>
+    <script src="app.js?v=20260601-save1"></script>
   </body>
 </html>

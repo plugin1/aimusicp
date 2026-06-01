@@ -9,9 +9,17 @@ const ICONS = {
 
 const STORAGE_KEYS = {
   legacyIdeas: "motiflab-state",
-  workspace: "motiflab-workspace-v1",
-  slots: "motiflab-save-slots-v1"
+  workspace: "motiflab-workspace-v2",
+  legacyWorkspace: "motiflab-workspace-v1",
+  slots: "motiflab-save-slots-v2",
+  legacySlots: "motiflab-save-slots-v1",
+  archives: "motiflab-save-archives-v1"
 };
+
+const AUDIO_DB_NAME = "motiflab-audio-store";
+const AUDIO_DB_VERSION = 1;
+const AUDIO_STORE = "audio";
+const MANUAL_SAVE_SLOTS = ["1", "2"];
 
 const FIELD_DEFAULTS = {
   projectTitle: "未命名歌曲",
@@ -459,6 +467,9 @@ const LEGACY_TRIUMPH_LABEL = "\u52dd\u5229\u611f";
 const state = {
   sourceBuffer: null,
   sourceName: "",
+  sourceAudioKey: "",
+  sourceMime: "",
+  sourceSize: 0,
   ideas: [],
   keywordMap: new Map(),
   deletedKeywords: new Set(),
@@ -496,6 +507,7 @@ let recordingSource;
 let recordingAnimationId;
 let autosaveTimer;
 let restoringWorkspace = false;
+let audioDbPromise;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -536,6 +548,7 @@ function bindEvents() {
   });
 
   $("#backHomeButton").addEventListener("click", () => {
+    persistWorkspace({ reason: "home" });
     document.body.classList.remove("in-app");
     applyEmotionTheme();
     $("#floatingJumpButton").hidden = true;
@@ -567,10 +580,7 @@ function bindEvents() {
   $("#generatePromptButton").addEventListener("click", updatePrompt);
   $("#copyPromptButton").addEventListener("click", copyPrompt);
   $("#copyPluginDataButton").addEventListener("click", copyPluginData);
-  $("#continueProjectButton")?.addEventListener("click", continueLastProject);
-  $("#newProjectButton")?.addEventListener("click", startNewProject);
-  $$("[data-save-slot]").forEach((button) => button.addEventListener("click", () => saveWorkspaceSlot(button.dataset.saveSlot)));
-  $$("[data-load-slot]").forEach((button) => button.addEventListener("click", () => loadWorkspaceSlot(button.dataset.loadSlot)));
+  $("#saveDock")?.addEventListener("click", handleSaveDockAction);
 
   ["projectTitle", "targetLang", "lyricStyle", "songStructure", "themeInput", "narratorInput", "rhymeInput", "negativePrompt", "providerMode", "providerName", "promptFormat", "lyricsDraft", "dialectInput"].forEach((id) => {
     const element = document.getElementById(id);
@@ -986,10 +996,21 @@ async function handleAudioFile(event) {
     const buffer = await file.arrayBuffer();
     state.sourceBuffer = await ctx.decodeAudioData(buffer.slice(0));
     state.sourceName = file.name;
+    state.sourceMime = file.type || "audio/*";
+    state.sourceSize = buffer.byteLength;
+    state.sourceAudioKey = createId("audio");
+    storeAudioAsset(state.sourceAudioKey, {
+      name: state.sourceName,
+      type: state.sourceMime,
+      size: state.sourceSize,
+      createdAt: new Date().toISOString(),
+      data: buffer
+    }).catch((error) => console.warn("Failed to persist audio", error));
     $("#fileLabel").textContent = file.name;
     $("#analyzeButton").disabled = false;
     $("#playInputButton").disabled = false;
     renderWaveform(state.sourceBuffer);
+    queueWorkspaceAutosave();
     toast("音頻已載入");
   } catch (error) {
     console.error(error);
@@ -1078,10 +1099,21 @@ async function loadRecordedBlob(blob) {
     const data = await blob.arrayBuffer();
     state.sourceBuffer = await ctx.decodeAudioData(data.slice(0));
     state.sourceName = "recorded-hum.webm";
+    state.sourceMime = blob.type || "audio/webm";
+    state.sourceSize = data.byteLength;
+    state.sourceAudioKey = createId("audio");
+    storeAudioAsset(state.sourceAudioKey, {
+      name: state.sourceName,
+      type: state.sourceMime,
+      size: state.sourceSize,
+      createdAt: new Date().toISOString(),
+      data
+    }).catch((error) => console.warn("Failed to persist recorded audio", error));
     $("#recordState").textContent = `${formatTime(state.sourceBuffer.duration)} 已錄製`;
     $("#analyzeButton").disabled = false;
     $("#playInputButton").disabled = false;
     renderWaveform(state.sourceBuffer);
+    queueWorkspaceAutosave();
     toast("錄音已載入");
   } catch (error) {
     console.error(error);
@@ -1239,6 +1271,69 @@ function getBufferSuggestedGain(buffer, targetRms = 0.16) {
   const rms = Math.sqrt(sum / Math.max(count, 1));
   if (!rms) return 1.2;
   return clamp(targetRms / rms, 0.92, 3.2);
+}
+
+function openAudioDb() {
+  if (audioDbPromise) return audioDbPromise;
+  audioDbPromise = new Promise((resolve, reject) => {
+    if (!("indexedDB" in window)) {
+      reject(new Error("IndexedDB unavailable"));
+      return;
+    }
+    const request = indexedDB.open(AUDIO_DB_NAME, AUDIO_DB_VERSION);
+    request.addEventListener("upgradeneeded", () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(AUDIO_STORE)) db.createObjectStore(AUDIO_STORE, { keyPath: "key" });
+    });
+    request.addEventListener("success", () => resolve(request.result));
+    request.addEventListener("error", () => reject(request.error));
+  });
+  return audioDbPromise;
+}
+
+async function storeAudioAsset(key, asset) {
+  if (!key || !asset?.data) return;
+  const db = await openAudioDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(AUDIO_STORE, "readwrite");
+    tx.objectStore(AUDIO_STORE).put({ key, ...asset });
+    tx.addEventListener("complete", resolve);
+    tx.addEventListener("error", () => reject(tx.error));
+  });
+}
+
+async function readAudioAsset(key) {
+  if (!key) return null;
+  const db = await openAudioDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(AUDIO_STORE, "readonly");
+    const request = tx.objectStore(AUDIO_STORE).get(key);
+    request.addEventListener("success", () => resolve(request.result || null));
+    request.addEventListener("error", () => reject(request.error));
+  });
+}
+
+async function restoreAudioFromSnapshot(snapshot) {
+  if (!snapshot?.sourceAudioKey) return;
+  try {
+    const asset = await readAudioAsset(snapshot.sourceAudioKey);
+    if (!asset?.data) return;
+    const ctx = await getAudioContext();
+    const data = asset.data.slice ? asset.data.slice(0) : asset.data;
+    state.sourceBuffer = await ctx.decodeAudioData(data);
+    state.sourceName = asset.name || snapshot.sourceName || "saved-hum";
+    state.sourceMime = asset.type || snapshot.sourceMime || "";
+    state.sourceSize = asset.size || snapshot.sourceSize || 0;
+    state.sourceAudioKey = snapshot.sourceAudioKey;
+    $("#fileLabel").textContent = state.sourceName;
+    $("#analyzeButton").disabled = false;
+    $("#playInputButton").disabled = false;
+    renderRestoredAudioState();
+    updatePrompt();
+  } catch (error) {
+    console.warn("Failed to restore audio", error);
+    $("#fileLabel").textContent = state.sourceName ? `${state.sourceName}（原音讀取失敗）` : "上傳音頻";
+  }
 }
 
 function detectPitch(samples, sampleRate) {
@@ -1610,7 +1705,7 @@ function saveIdea() {
     toast("靈感已更新，請重新檢查關鍵詞");
   } else {
     const idea = {
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      id: createId("idea"),
       text,
       moods,
       keywords: extractKeywords(text),
@@ -2200,6 +2295,7 @@ function persistIdeas() {
     keywords: [...state.keywordMap.entries()].map(([word, meta]) => [word, { count: meta.count, moods: [...meta.moods] }])
   };
   localStorage.setItem(STORAGE_KEYS.legacyIdeas, JSON.stringify(payload));
+  queueWorkspaceAutosave();
 }
 
 function restoreIdeas() {
@@ -2223,15 +2319,19 @@ function restoreIdeas() {
   }
 }
 
-function buildWorkspaceSnapshot() {
+function buildWorkspaceSnapshot(options = {}) {
   const fields = {};
   WORKSPACE_FIELDS.forEach((id) => {
     const element = document.getElementById(id);
     fields[id] = element ? element.value : FIELD_DEFAULTS[id];
   });
+  const savedAt = new Date().toISOString();
+  const name = options.name || getDefaultSaveName(fields);
   return {
-    version: 1,
-    savedAt: new Date().toISOString(),
+    version: 2,
+    kind: options.kind || "auto",
+    name,
+    savedAt,
     activeModule: $(".module-panel.active")?.id || "humming",
     fields,
     ideas: state.ideas,
@@ -2245,6 +2345,9 @@ function buildWorkspaceSnapshot() {
     lastIdeaId: state.lastIdeaId,
     analysis: serializeAnalysis(state.analysis),
     sourceName: state.sourceName,
+    sourceAudioKey: state.sourceAudioKey,
+    sourceMime: state.sourceMime,
+    sourceSize: state.sourceSize,
     selectedChord: serializeArrangementChoice(state.selectedChord),
     selectedDrum: serializeArrangementChoice(state.selectedDrum),
     arrangementStep: state.arrangementStep,
@@ -2282,10 +2385,10 @@ function serializeArrangementChoice(choice) {
   return { id: choice.id };
 }
 
-function persistWorkspace() {
+function persistWorkspace(options = {}) {
   if (restoringWorkspace || !document.getElementById("projectTitle")) return;
   try {
-    localStorage.setItem(STORAGE_KEYS.workspace, JSON.stringify(buildWorkspaceSnapshot()));
+    localStorage.setItem(STORAGE_KEYS.workspace, JSON.stringify(buildWorkspaceSnapshot({ kind: "auto", name: "自動存檔", reason: options.reason })));
     renderSaveDock();
   } catch (error) {
     console.warn("Failed to autosave workspace", error);
@@ -2299,7 +2402,7 @@ function queueWorkspaceAutosave() {
 }
 
 function restoreWorkspace() {
-  const raw = localStorage.getItem(STORAGE_KEYS.workspace);
+  const raw = localStorage.getItem(STORAGE_KEYS.workspace) || localStorage.getItem(STORAGE_KEYS.legacyWorkspace);
   if (!raw) return false;
   try {
     applyWorkspaceSnapshot(JSON.parse(raw), { silent: true });
@@ -2312,48 +2415,66 @@ function restoreWorkspace() {
 
 function applyWorkspaceSnapshot(snapshot, { silent = false } = {}) {
   if (!snapshot || typeof snapshot !== "object") return false;
+  const saveSnapshot = snapshot.snapshot || snapshot;
   restoringWorkspace = true;
   WORKSPACE_FIELDS.forEach((id) => {
     const element = document.getElementById(id);
     if (!element) return;
-    element.value = snapshot.fields?.[id] ?? FIELD_DEFAULTS[id];
+    element.value = saveSnapshot.fields?.[id] ?? FIELD_DEFAULTS[id];
   });
-  state.ideas = (snapshot.ideas || []).map((idea) => ({
-    ...idea,
-    moods: (idea.moods || (idea.mood ? [idea.mood] : [])).map((mood) => mood === LEGACY_TRIUMPH_LABEL ? "成就感" : mood),
-    keywords: Array.isArray(idea.keywords) ? idea.keywords : extractKeywords(idea.text || ""),
-    reviewed: Boolean(idea.reviewed),
-    updatedAt: idea.updatedAt || idea.createdAt,
-    history: idea.history || []
-  }));
-  state.selectedIdeaIds = new Set((snapshot.selectedIdeaIds || []).filter((id) => state.ideas.some((idea) => idea.id === id && isIdeaReviewed(idea))));
-  state.selectedLyricKeywords = new Set(snapshot.selectedLyricKeywords || []);
-  state.selectedReferenceWords = new Set(snapshot.selectedReferenceWords || []);
-  state.deletedKeywords = new Set(snapshot.deletedKeywords || []);
-  state.selectedMoods = new Set(snapshot.selectedMoods || []);
-  state.lyricMoods = new Set(snapshot.lyricMoods || []);
-  state.activeIdeaFilters = new Set(snapshot.activeIdeaFilters || []);
-  state.lastIdeaId = snapshot.lastIdeaId || "";
-  state.analysis = hydrateAnalysis(snapshot.analysis);
+  state.ideas = mergeIdeaLibraries(state.ideas, saveSnapshot.ideas || []);
+  state.selectedIdeaIds = new Set((saveSnapshot.selectedIdeaIds || []).filter((id) => state.ideas.some((idea) => idea.id === id && isIdeaReviewed(idea))));
+  state.selectedLyricKeywords = new Set(saveSnapshot.selectedLyricKeywords || []);
+  state.selectedReferenceWords = new Set(saveSnapshot.selectedReferenceWords || []);
+  state.deletedKeywords = new Set(saveSnapshot.deletedKeywords || []);
+  state.selectedMoods = new Set(saveSnapshot.selectedMoods || []);
+  state.lyricMoods = new Set(saveSnapshot.lyricMoods || []);
+  state.activeIdeaFilters = new Set(saveSnapshot.activeIdeaFilters || []);
+  state.lastIdeaId = saveSnapshot.lastIdeaId || "";
+  state.analysis = hydrateAnalysis(saveSnapshot.analysis);
   state.sourceBuffer = null;
-  state.sourceName = snapshot.sourceName || "";
-  state.selectedChord = restoreChordChoice(snapshot.selectedChord);
-  state.selectedDrum = restoreDrumChoice(snapshot.selectedDrum);
-  state.arrangementStep = snapshot.arrangementStep || "top";
-  state.arrangementAuditioned = Boolean(snapshot.arrangementAuditioned);
-  state.hummingStep = snapshot.hummingStep || "input";
-  state.inspirationStep = snapshot.inspirationStep || "editor";
-  state.lyricsStep = snapshot.lyricsStep || "top";
-  state.lyricsDone = Boolean(snapshot.lyricsDone);
-  state.promptStep = snapshot.promptStep || "notes";
-  state.promptDone = Boolean(snapshot.promptDone);
+  state.sourceName = saveSnapshot.sourceName || "";
+  state.sourceAudioKey = saveSnapshot.sourceAudioKey || "";
+  state.sourceMime = saveSnapshot.sourceMime || "";
+  state.sourceSize = saveSnapshot.sourceSize || 0;
+  state.selectedChord = restoreChordChoice(saveSnapshot.selectedChord);
+  state.selectedDrum = restoreDrumChoice(saveSnapshot.selectedDrum);
+  state.arrangementStep = saveSnapshot.arrangementStep || "top";
+  state.arrangementAuditioned = Boolean(saveSnapshot.arrangementAuditioned);
+  state.hummingStep = saveSnapshot.hummingStep || "input";
+  state.inspirationStep = saveSnapshot.inspirationStep || "editor";
+  state.lyricsStep = saveSnapshot.lyricsStep || "top";
+  state.lyricsDone = Boolean(saveSnapshot.lyricsDone);
+  state.promptStep = saveSnapshot.promptStep || "notes";
+  state.promptDone = Boolean(saveSnapshot.promptDone);
   rebuildKeywordMap();
   restoringWorkspace = false;
+  restoreAudioFromSnapshot(saveSnapshot);
   if (!silent) {
     refreshWorkspaceUI();
     toast("已讀取存檔");
   }
   return true;
+}
+
+function mergeIdeaLibraries(currentIdeas, incomingIdeas) {
+  const normalized = new Map();
+  [...(incomingIdeas || []), ...(currentIdeas || [])].forEach((idea) => {
+    if (!idea?.id) return;
+    const next = {
+      ...idea,
+      moods: (idea.moods || (idea.mood ? [idea.mood] : [])).map((mood) => mood === LEGACY_TRIUMPH_LABEL ? "成就感" : mood),
+      keywords: Array.isArray(idea.keywords) ? idea.keywords : extractKeywords(idea.text || ""),
+      reviewed: Boolean(idea.reviewed),
+      updatedAt: idea.updatedAt || idea.createdAt,
+      history: idea.history || []
+    };
+    const existing = normalized.get(next.id);
+    if (!existing || new Date(next.updatedAt || next.createdAt || 0) >= new Date(existing.updatedAt || existing.createdAt || 0)) {
+      normalized.set(next.id, next);
+    }
+  });
+  return [...normalized.values()].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 }
 
 function hydrateAnalysis(analysis) {
@@ -2433,7 +2554,14 @@ function renderRestoredAudioState() {
 
 function getSaveSlots() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.slots) || "{}") || {};
+    const raw = localStorage.getItem(STORAGE_KEYS.slots) || localStorage.getItem(STORAGE_KEYS.legacySlots);
+    const parsed = JSON.parse(raw || "{}") || {};
+    const normalized = {};
+    Object.entries(parsed).forEach(([id, record]) => {
+      if (!record) return;
+      normalized[id] = normalizeSaveRecord(id, record);
+    });
+    return normalized;
   } catch (error) {
     return {};
   }
@@ -2443,70 +2571,179 @@ function setSaveSlots(slots) {
   localStorage.setItem(STORAGE_KEYS.slots, JSON.stringify(slots));
 }
 
-function renderSaveDock() {
-  const status = $("#saveSlotStatus");
-  if (status) {
-    const raw = localStorage.getItem(STORAGE_KEYS.workspace);
-    let savedAt = "";
-    try {
-      savedAt = raw ? JSON.parse(raw)?.savedAt : "";
-    } catch (error) {
-      savedAt = "";
-    }
-    status.textContent = savedAt ? `自動 ${formatDateTime(savedAt)}` : "本機保存";
+function getSaveArchives() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.archives) || "[]") || [];
+  } catch (error) {
+    return [];
   }
+}
+
+function setSaveArchives(archives) {
+  localStorage.setItem(STORAGE_KEYS.archives, JSON.stringify(archives));
+}
+
+function normalizeSaveRecord(id, record) {
+  const snapshot = record.snapshot || record;
+  return {
+    id,
+    name: record.name || record.title || snapshot.name || getDefaultSaveName(snapshot.fields),
+    savedAt: record.savedAt || snapshot.savedAt || new Date().toISOString(),
+    completed: Boolean(record.completed),
+    favoriteAt: record.favoriteAt || "",
+    snapshot
+  };
+}
+
+function getAutoSnapshot() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.workspace) || localStorage.getItem(STORAGE_KEYS.legacyWorkspace);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getDefaultSaveName(fields = {}) {
+  const theme = (fields.themeInput || $("#themeInput")?.value || "").trim();
+  const title = (fields.projectTitle || $("#projectTitle")?.value || "").trim();
+  if (theme) return theme.slice(0, 28);
+  if (title && title !== FIELD_DEFAULTS.projectTitle) return title.slice(0, 28);
+  return inferTheme().slice(0, 28);
+}
+
+function summarizeSave(snapshot) {
+  const ideas = snapshot?.selectedIdeaIds?.length || 0;
+  const keywords = snapshot?.selectedLyricKeywords?.length || 0;
+  const chord = restoreChordChoice(snapshot?.selectedChord);
+  const drum = restoreDrumChoice(snapshot?.selectedDrum);
+  return [
+    snapshot?.analysis?.notes?.length ? `${snapshot.analysis.notes.length} 音` : "未放旋律",
+    snapshot?.sourceAudioKey ? "有原音" : "無原音",
+    chord ? `和弦 ${chord.empty ? "選空" : chord.title}` : "未選和弦",
+    drum ? `鼓點 ${drum.empty ? "選空" : drum.title}` : "未選鼓點",
+    `${ideas} 條靈感`,
+    `${keywords} 個歌詞詞`
+  ].join(" · ");
+}
+
+function renderSaveDock() {
+  const dock = $("#saveDock");
+  if (!dock) return;
+  const auto = getAutoSnapshot();
+  const autoSnapshot = auto?.snapshot || auto;
+  const hasAuto = Boolean(autoSnapshot?.savedAt);
   const slots = getSaveSlots();
-  $$("[data-load-slot]").forEach((button) => {
-    const slot = slots[button.dataset.loadSlot];
-    button.classList.toggle("has-save", Boolean(slot));
-    button.title = slot ? `${slot.title || "未命名歌曲"} · ${formatDateTime(slot.savedAt)}` : "這個槽還沒有存檔";
-  });
+  const archives = getSaveArchives();
+  const slotHtml = MANUAL_SAVE_SLOTS.map((id) => {
+    const slot = slots[id];
+    if (!slot?.snapshot) {
+      return `<article class="save-slot-card empty">
+        <span>空存檔欄 ${id}</span>
+        <strong>準備保存</strong>
+        <small>命名後會變成實色項目</small>
+        <button type="button" data-save-action="save-slot" data-slot-id="${id}">存到這裡</button>
+      </article>`;
+    }
+    return `<article class="save-slot-card filled">
+      <span>手動存檔 ${id}</span>
+      <strong>${escapeHtml(slot.name)}</strong>
+      <small>${formatDateTime(slot.savedAt)} · ${escapeHtml(summarizeSave(slot.snapshot))}</small>
+      <div class="save-card-actions">
+        <button type="button" data-save-action="load-slot" data-slot-id="${id}">讀取</button>
+        <button type="button" data-save-action="save-slot" data-slot-id="${id}">覆蓋</button>
+        <button type="button" data-save-action="rename-slot" data-slot-id="${id}">命名</button>
+        <button type="button" data-save-action="archive-slot" data-slot-id="${id}">收藏</button>
+      </div>
+    </article>`;
+  }).join("");
+  const archiveHtml = archives.length
+    ? archives.map((record) => `<article class="archive-row">
+        <button type="button" data-save-action="load-archive" data-archive-id="${escapeHtml(record.id)}">
+          <strong>${escapeHtml(record.name)}</strong>
+          <small>${formatDateTime(record.savedAt)}</small>
+        </button>
+      </article>`).join("")
+    : `<p>完成後收藏的作品會折疊在這裡，不佔手動存檔欄。</p>`;
+  dock.innerHTML = `<div class="save-head">
+      <strong>製作檔案</strong>
+      <small>只保存在此瀏覽器；清除網站資料會刪除。</small>
+    </div>
+    <div class="save-primary-actions">
+      <button class="save-main-action" type="button" data-save-action="${hasAuto ? "continue" : "start"}">${hasAuto ? "繼續製作" : "開始製作"}</button>
+      <button type="button" data-save-action="restart">${hasAuto ? "重新製作" : "空白開始"}</button>
+    </div>
+    <article class="save-auto-card${hasAuto ? " filled" : ""}">
+      <span>自動存檔</span>
+      <strong>${hasAuto ? escapeHtml(autoSnapshot.name || "自動存檔") : "等待第一次保存"}</strong>
+      <small>${hasAuto ? `${formatDateTime(autoSnapshot.savedAt)} · ${escapeHtml(summarizeSave(autoSnapshot))}` : "每次修改都會更新；回首頁會立即保存一次。"}</small>
+    </article>
+    <div class="save-slot-list">${slotHtml}</div>
+    <details class="save-archive">
+      <summary>收藏作品 ${archives.length}</summary>
+      ${archiveHtml}
+    </details>`;
 }
 
 function continueLastProject() {
-  const raw = localStorage.getItem(STORAGE_KEYS.workspace);
-  if (!raw) {
-    toast("還沒有上次進度，可以先新開一檔");
+  const snapshot = getAutoSnapshot();
+  if (!snapshot) {
+    startProject();
     return;
   }
-  try {
-    const snapshot = JSON.parse(raw);
-    applyWorkspaceSnapshot(snapshot);
-    openModule(snapshot.activeModule || "humming");
-  } catch (error) {
-    toast("上次進度讀取失敗，可以新開一檔");
-  }
+  applyWorkspaceSnapshot(snapshot);
+  openModule((snapshot.snapshot || snapshot).activeModule || "humming");
+}
+
+function startProject() {
+  openModule("humming");
+  persistWorkspace({ reason: "start" });
 }
 
 function startNewProject() {
-  const ok = window.confirm("要開新檔嗎？目前進度會留在手動存檔槽；自動進度會被清空。");
+  const ok = window.confirm("要重新製作嗎？靈感庫會保留，但本次選中的旋律、和弦、鼓點、歌詞和提示詞會清空。");
   if (!ok) return;
   stopScheduledAudio({ silent: true });
   localStorage.removeItem(STORAGE_KEYS.workspace);
-  localStorage.removeItem(STORAGE_KEYS.legacyIdeas);
-  applyWorkspaceSnapshot({ fields: FIELD_DEFAULTS, ideas: [] }, { silent: true });
+  const keptIdeas = state.ideas;
+  applyWorkspaceSnapshot({ fields: FIELD_DEFAULTS, ideas: keptIdeas, selectedIdeaIds: [] }, { silent: true });
+  state.ideas = keptIdeas;
+  state.selectedIdeaIds.clear();
+  state.selectedLyricKeywords.clear();
+  state.selectedReferenceWords.clear();
   state.selectedChord = null;
   state.selectedDrum = null;
   state.sourceName = "";
   state.sourceBuffer = null;
+  state.sourceAudioKey = "";
+  state.sourceMime = "";
+  state.sourceSize = 0;
   state.analysis = null;
   document.body.classList.remove("in-app");
   refreshWorkspaceUI();
+  persistIdeas();
+  persistWorkspace({ reason: "restart" });
   window.scrollTo({ top: 0, behavior: "smooth" });
-  toast("已開新檔");
+  toast("已重新製作；靈感庫仍保留");
 }
 
 function saveWorkspaceSlot(slotId) {
   const slots = getSaveSlots();
-  const snapshot = buildWorkspaceSnapshot();
+  const current = slots[slotId];
+  const fallback = current?.name || getDefaultSaveName();
+  const name = window.prompt("替這個存檔命名", fallback);
+  if (name === null) return;
+  const snapshot = buildWorkspaceSnapshot({ kind: "manual", name: name.trim() || fallback });
   slots[slotId] = {
-    title: snapshot.fields.projectTitle || "未命名歌曲",
+    id: slotId,
+    name: snapshot.name,
     savedAt: snapshot.savedAt,
+    completed: false,
     snapshot
   };
   setSaveSlots(slots);
   renderSaveDock();
-  toast(`已存入檔案 ${slotId}`);
+  toast(`已存入：${snapshot.name}`);
 }
 
 function loadWorkspaceSlot(slotId) {
@@ -2517,6 +2754,62 @@ function loadWorkspaceSlot(slotId) {
   }
   applyWorkspaceSnapshot(slot.snapshot);
   openModule(slot.snapshot.activeModule || "humming");
+}
+
+function renameWorkspaceSlot(slotId) {
+  const slots = getSaveSlots();
+  const slot = slots[slotId];
+  if (!slot) return;
+  const name = window.prompt("修改存檔名稱", slot.name);
+  if (name === null) return;
+  slot.name = name.trim() || slot.name;
+  slot.snapshot.name = slot.name;
+  slot.savedAt = new Date().toISOString();
+  slot.snapshot.savedAt = slot.savedAt;
+  setSaveSlots(slots);
+  renderSaveDock();
+  toast("存檔已重新命名");
+}
+
+function archiveWorkspaceSlot(slotId) {
+  const slots = getSaveSlots();
+  const slot = slots[slotId];
+  if (!slot) return;
+  const archives = getSaveArchives();
+  const record = {
+    ...slot,
+    id: createId("archive"),
+    completed: true,
+    favoriteAt: new Date().toISOString()
+  };
+  archives.unshift(record);
+  delete slots[slotId];
+  setSaveSlots(slots);
+  setSaveArchives(archives);
+  renderSaveDock();
+  toast("已收藏，不再佔用存檔欄");
+}
+
+function loadArchive(archiveId) {
+  const record = getSaveArchives().find((item) => item.id === archiveId);
+  if (!record?.snapshot) return;
+  applyWorkspaceSnapshot(record.snapshot);
+  openModule(record.snapshot.activeModule || "humming");
+}
+
+function handleSaveDockAction(event) {
+  const button = event.target.closest("[data-save-action]");
+  if (!button) return;
+  const action = button.dataset.saveAction;
+  const slotId = button.dataset.slotId;
+  if (action === "continue") continueLastProject();
+  if (action === "start") startProject();
+  if (action === "restart") startNewProject();
+  if (action === "save-slot") saveWorkspaceSlot(slotId);
+  if (action === "load-slot") loadWorkspaceSlot(slotId);
+  if (action === "rename-slot") renameWorkspaceSlot(slotId);
+  if (action === "archive-slot") archiveWorkspaceSlot(slotId);
+  if (action === "load-archive") loadArchive(button.dataset.archiveId);
 }
 
 function renderIdeaFilter() {
@@ -4009,6 +4302,8 @@ async function copyPluginData() {
 }
 
 function buildPluginData() {
+  const exportedAt = new Date().toISOString();
+  const saveName = getDefaultSaveName();
   const melody = state.analysis
     ? [
         `旋律音：${state.analysis.notes.slice(0, 18).map((note) => note.name).join(" - ") || "未檢測"}`,
@@ -4046,12 +4341,24 @@ function buildPluginData() {
       : (state.selectedDrum?.empty ? "鼓點：已選空" : "鼓點：尚未選擇"),
     `推薦依據：${getSelectedEmotionLabels(new Set([...state.lyricMoods, ...state.selectedMoods])).join(" / ")}`
   ].join("\n");
-  return {
+  const systems = {
     humming: melody,
     inspiration,
     lyrics,
     arrangement,
     prompt: $("#promptOutput").value
+  };
+  return {
+    meta: {
+      app: "MotifLab",
+      version: "20260601-save1",
+      saveName,
+      exportedAt,
+      autoSavedAt: getAutoSnapshot()?.savedAt || "",
+      storage: "此資料來自 MotifLab 本機存檔；插件只能讀取你匯入的 JSON。"
+    },
+    systems,
+    ...systems
   };
 }
 
@@ -4099,6 +4406,11 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function createId(prefix = "id") {
+  const raw = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${prefix}-${raw}`;
 }
 
 function clamp(value, min, max) {

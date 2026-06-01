@@ -6,7 +6,11 @@ const MOTIFLAB_DEFAULT = {
   prompt: "提示詞：尚未生成"
 };
 
-const MOTIFLAB_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260531-ui24";
+const MOTIFLAB_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260601-save1";
+const MOTIFLAB_EMPTY_META = {
+  saveName: "尚未讀取存檔",
+  exportedAt: ""
+};
 
 const MOTIFLAB_TABS = [
   ["humming", "哼唱", "聲音線", "#e7a7bd"],
@@ -17,6 +21,7 @@ const MOTIFLAB_TABS = [
 ];
 
 let motiflabState = { ...MOTIFLAB_DEFAULT };
+let motiflabMeta = { ...MOTIFLAB_EMPTY_META };
 let motiflabActive = "humming";
 
 if (!window.__motiflabSunoLoaded) {
@@ -25,8 +30,9 @@ if (!window.__motiflabSunoLoaded) {
 }
 
 async function initMotifLab() {
-  const saved = await chrome.storage.local.get(["motiflabConclusions"]);
+  const saved = await chrome.storage.local.get(["motiflabConclusions", "motiflabMeta"]);
   motiflabState = { ...MOTIFLAB_DEFAULT, ...(saved.motiflabConclusions || {}) };
+  motiflabMeta = { ...MOTIFLAB_EMPTY_META, ...(saved.motiflabMeta || {}) };
   renderMotifLab();
 }
 
@@ -40,7 +46,7 @@ function renderMotifLab() {
       <header class="motiflab-head">
         <div>
           <strong>MotifLab</strong>
-          <small>在 Suno 裡查看與修改創作結論</small>
+          <small data-save-source>尚未讀取存檔</small>
         </div>
         <button class="motiflab-icon" type="button" data-close>×</button>
       </header>
@@ -67,7 +73,7 @@ function renderMotifLab() {
           <button class="motiflab-secondary" type="button" data-import>匯入</button>
           <button class="motiflab-secondary" type="button" data-reset>重置</button>
         </div>
-        <p class="motiflab-note">目前插件是本機小抄：不會自動讀取 Suno 帳號內容，也不會替你花費生成額度。網頁版提示詞系統點「複製插件資料」後，貼到這裡匯入；正式生成前，再把需要的段落填入 Suno。</p>
+        <p class="motiflab-note" data-empty-note>如果不是從 MotifLab 的 ✓ 跳轉過來，請先回網頁版選擇「自動存檔」或某個手動存檔，再到提示詞系統複製插件資料貼回這裡。插件不會自動讀取另一個網站的本機存檔。</p>
         <div class="motiflab-toast" data-toast></div>
       </div>
     </section>
@@ -95,6 +101,7 @@ function bindMotifLab(root) {
   root.querySelector("[data-import]").addEventListener("click", () => importData(root));
   root.querySelector("[data-reset]").addEventListener("click", async () => {
     motiflabState = { ...MOTIFLAB_DEFAULT };
+    motiflabMeta = { ...MOTIFLAB_EMPTY_META };
     await persistMotifLab();
     updateMotifLabUI(root);
     showToast(root, "已重置");
@@ -104,6 +111,11 @@ function bindMotifLab(root) {
 function updateMotifLabUI(root) {
   root.querySelectorAll("[data-tab]").forEach((button) => button.classList.toggle("active", button.dataset.tab === motiflabActive));
   const label = MOTIFLAB_TABS.find(([id]) => id === motiflabActive)?.[1] || "段落";
+  const imported = motiflabMeta.exportedAt || Object.values(motiflabState).some((text) => !/^.+尚未/.test(text));
+  root.classList.toggle("has-import", Boolean(imported));
+  root.querySelector("[data-save-source]").textContent = imported
+    ? `讀取：${motiflabMeta.saveName || "未命名存檔"}${motiflabMeta.exportedAt ? " · " + formatTime(motiflabMeta.exportedAt) : ""}`
+    : "請先讀取 MotifLab 存檔";
   root.querySelector("[data-current-label]").textContent = `${label}系統結論詞`;
   root.querySelector("[data-current-text]").value = motiflabState[motiflabActive] || "";
 }
@@ -114,7 +126,7 @@ function saveCurrentText(root) {
 }
 
 async function persistMotifLab() {
-  await chrome.storage.local.set({ motiflabConclusions: motiflabState });
+  await chrome.storage.local.set({ motiflabConclusions: motiflabState, motiflabMeta });
 }
 
 function buildAllText() {
@@ -143,12 +155,27 @@ async function importData(root) {
   if (!raw) return showToast(root, "先貼上 JSON");
   try {
     const parsed = JSON.parse(raw);
-    motiflabState = { ...MOTIFLAB_DEFAULT, ...parsed };
+    const systems = parsed.systems || parsed;
+    motiflabState = { ...MOTIFLAB_DEFAULT, ...systems };
+    motiflabMeta = { ...MOTIFLAB_EMPTY_META, ...(parsed.meta || {}) };
     await persistMotifLab();
     updateMotifLabUI(root);
-    showToast(root, "已匯入");
+    showToast(root, `已讀取：${motiflabMeta.saveName || "存檔"}`);
   } catch (error) {
     showToast(root, "JSON 格式不對");
+  }
+}
+
+function formatTime(value) {
+  try {
+    return new Intl.DateTimeFormat("zh-Hant", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(value));
+  } catch (error) {
+    return "";
   }
 }
 
