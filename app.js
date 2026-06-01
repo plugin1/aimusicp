@@ -13,7 +13,8 @@ const STORAGE_KEYS = {
   legacyWorkspace: "motiflab-workspace-v1",
   slots: "motiflab-save-slots-v2",
   legacySlots: "motiflab-save-slots-v1",
-  archives: "motiflab-save-archives-v1"
+  archives: "motiflab-save-archives-v1",
+  guide: "motiflab-guide-state-v1"
 };
 
 const AUDIO_DB_NAME = "motiflab-audio-store";
@@ -152,6 +153,101 @@ const CHOICES = {
     { label: "不要太滿", value: "過多樂器、過度堆疊、搶人聲的音效、過度花俏", desc: "讓主旋律和歌詞留出空間。" },
     { label: "保守安全", value: "低清晰度人聲、雜訊、突兀轉調、過度混響、過多樂器", desc: "通用預設，適合第一次生成。" }
   ]
+};
+
+const GUIDE_CONTENT = {
+  home: {
+    title: "從哪裡開始都可以",
+    source: "",
+    steps: [
+      "如果你手上有一段旋律、鼻歌或語音備忘錄，先進「哼唱」：它會把聲音整理成旋律輪廓、速度、調性感覺和字數建議。",
+      "如果你先想到的是畫面、故事、人物或一句話，先進「靈感」：它會把文字放進靈感庫，之後整理成可選的關鍵詞和歌詞素材。",
+      "前兩個系統是起點；編曲和歌詞可以之後慢慢補。最後再進「提示詞」，把四個系統的結論合成給 AI 音樂工具看的版本。"
+    ],
+    arrows: [
+      { id: "home-humming", selector: ".pos-humming", label: "有旋律或錄音，從這裡開始。", placement: "right" },
+      { id: "home-inspiration", selector: ".pos-inspiration", label: "有故事或句子，從這裡開始。", placement: "left" }
+    ]
+  },
+  humming: {
+    title: "先把聲音變成可用的旋律素材",
+    source: "",
+    steps: [
+      "你可以上傳音頻，也可以直接錄一段哼唱。小白不用唱準，只要盡量靠近麥克風、單聲部哼 10 秒以上，分析會比較穩。",
+      "按「分析旋律」後，這裡會出現速度、調性感覺、時長、字數建議、旋律記錄和簡譜。像 G 大調這類專有詞不懂也沒關係，後面會替你轉成推薦。",
+      "完成哼唱後，到編曲系統會看到比較適合這段旋律的和弦和鼓點。你可以一個個試，也可以配著哼唱一起聽；不想選和弦或鼓點也可以明確選空。",
+      "選到順耳的編曲後，可以用「循環背景」讓它在其他系統工作時一直播放，像臨時創作伴奏。"
+    ],
+    arrows: [
+      { id: "humming-upload", selector: ".upload-panel", label: "把現成音頻放進來。", placement: "bottom" },
+      { id: "humming-record", selector: ".record-panel", label: "或直接對著麥克風哼唱。", placement: "bottom" },
+      { id: "humming-analyze", selector: "#analyzeButton", label: "放入聲音後按這裡分析。", placement: "top" },
+      { id: "humming-score", selector: "#humming .score-panel", label: "分析結果會在這裡變成旋律摘要。", placement: "left" }
+    ]
+  },
+  inspiration: {
+    title: "把零散文字變成可找回、可創作的靈感",
+    source: "情緒分類參考 Alan S. Cowen 與 Dacher Keltner 於 2017 年 PNAS 發表的 27 種情緒研究；這裡把它改寫成創作標籤，不是心理診斷。",
+    steps: [
+      "先把場景、對話、夢、人物設定或一句突然想到的話寫進來，再選情緒。情緒可多選，會影響這條靈感的大框顏色和後續推薦詞。",
+      "寫完會進靈感庫。系統會先自動抓關鍵詞，但它只是草稿；你需要刪、改、補，按下 ✓ 後這條靈感才算建立完成。",
+      "建立完成後，選中這次想用的靈感原文，它就會被歌詞系統和提示詞系統調用。沒有選中、還沒確認的內容不會消失，會留在全存檔共用的靈感庫裡，之後還能再用。",
+      "找回靈感時可以按情緒多選篩選，看到的是並集：只要命中任何一個情緒標籤就會顯示。"
+    ],
+    arrows: [
+      { id: "idea-text", selector: "#ideaInput", label: "先把原始文字丟進來，不需要一次寫完整。", placement: "right" },
+      { id: "idea-emotion", selector: "#moodPicker", label: "用 27 種情緒幫這條靈感貼標籤。", placement: "top" },
+      { id: "idea-save", selector: "#saveIdeaButton", label: "加入靈感庫後再人工確認關鍵詞。", placement: "top" },
+      { id: "idea-library", selector: "#ideaList", label: "確認完成的靈感可以被選中，帶到後面系統。", placement: "left" }
+    ]
+  },
+  arrangement: {
+    title: "把旋律和情緒試成可以工作的伴奏方向",
+    source: "",
+    steps: [
+      "如果前面有哼唱分析，和弦卡片會優先推薦更貼近這段旋律的候選；如果沒有哼唱，就主要按你選的情緒推薦。",
+      "和弦和鼓點可以分開選，也可以其中一個選空。選中只是代表「這次想帶去提示詞」，不代表你不能繼續試聽別的。",
+      "「和弦+鼓點」用來聽整體風格；「旋律+編曲」會把哼唱旋律和伴奏一起放出來，幫你判斷合不合。",
+      "確定方向後，按「循環背景」可以讓它在寫詞或整理提示詞時一直當背景播放。"
+    ],
+    arrows: [
+      { id: "arrangement-chord", selector: "#arrangement .chord-column", label: "先挑歌曲的情緒底色。", placement: "right" },
+      { id: "arrangement-drum", selector: "#arrangement .drum-column", label: "再挑身體感和節奏推進。", placement: "left" },
+      { id: "arrangement-melody", selector: "#playMelodyComboButton", label: "有哼唱時，用這裡聽旋律和編曲是否合拍。", placement: "bottom" },
+      { id: "arrangement-loop", selector: "#loopComboButton", label: "喜歡的組合可以全程循環。", placement: "bottom" }
+    ]
+  },
+  lyrics: {
+    title: "把靈感、情緒和語言口味整理成歌詞草稿",
+    source: "",
+    steps: [
+      "左側先確認這次要帶入哪些靈感，以及哪些關鍵詞真的要進入創作。只有在這裡選中的詞，才會進提示詞和歌詞生成。",
+      "演唱視角、歌詞口吻、段落骨架都可以留空；選了只是給 AI 更多方向。選段落骨架時，草稿區會先出現主歌/副歌的寫作指引。",
+      "右側可以調整跨語詞庫、方言/發音口味、核心主題、歌詞情緒和押韻尾音。情緒會改變背景漸變，也會影響參考詞和意象。",
+      "參考詞是可選素材，不是硬塞推薦；你可以挑押韻詞、意象、同義替換，再生成或手寫歌詞草稿。寫完按 ✓，下一步才會前往提示詞系統。"
+    ],
+    arrows: [
+      { id: "lyrics-ideas", selector: "#lyricsIdeaBrief", label: "這裡是本次選中的靈感原文。", placement: "right" },
+      { id: "lyrics-keywords", selector: "#selectedKeywordShelf", label: "只勾真正要寫進歌裡的關鍵詞。", placement: "bottom" },
+      { id: "lyrics-emotion", selector: "#lyricMoodPicker", label: "歌詞情緒會影響背景色與推薦詞。", placement: "left" },
+      { id: "lyrics-draft", selector: "#lyricsDraft", label: "草稿可以生成，也可以自己寫後再整理。", placement: "left" }
+    ]
+  },
+  prompt: {
+    title: "最後把四個系統的結論合成提示詞",
+    source: "",
+    steps: [
+      "最上方四個小 note 是互動總結：哼唱、編曲、靈感、歌詞各自保留自己的結論，點進去可以回到對應位置修改。",
+      "輸出格式決定提示詞長短和用途；限制條件是告訴 AI 不要做什麼，例如不要雜訊、不要人聲糊掉、不要編曲過滿。",
+      "AI 工具接入先用「複製到平台」最穩。Suno 可搭配右下角 M 插件，在 Suno 頁面隨時查看和編輯這些結論詞；API key 這類鑰匙正式產品要放後端，不能直接放前端。",
+      "檢查生成結果後按 ✓，下一頁會打開目標平台。預設是 Suno，也可以改成 Gemini / Lyria、Udio 或其他工具。"
+    ],
+    arrows: [
+      { id: "prompt-notes", selector: "#promptSystemNotes", label: "四個系統的結論先在這裡對齊。", placement: "bottom" },
+      { id: "prompt-settings", selector: "#promptWorkbench", label: "再決定輸出格式、限制和平台。", placement: "right" },
+      { id: "prompt-result", selector: "#promptOutput", label: "生成結果檢查完，按 ✓ 就能去 AI 音樂工具。", placement: "left" }
+    ]
+  }
 };
 
 const PROVIDER_LINKS = {
@@ -479,6 +575,9 @@ const state = {
   selectedReferenceWords: new Set(),
   lastIdeaId: "",
   promptReturnScroll: 0,
+  guideMode: false,
+  guideArrows: true,
+  dismissedGuideArrows: new Set(),
   hummingStep: "input",
   inspirationStep: "editor",
   lyricsStep: "top",
@@ -512,7 +611,26 @@ let audioDbPromise;
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+function loadGuidePreferences() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.guide) || "{}");
+    state.guideMode = Boolean(parsed.guideMode);
+    state.guideArrows = parsed.guideArrows !== false;
+  } catch (error) {
+    state.guideMode = false;
+    state.guideArrows = true;
+  }
+}
+
+function persistGuidePreferences() {
+  localStorage.setItem(STORAGE_KEYS.guide, JSON.stringify({
+    guideMode: state.guideMode,
+    guideArrows: state.guideArrows
+  }));
+}
+
 function init() {
+  loadGuidePreferences();
   bindEvents();
   const restoredWorkspace = restoreWorkspace();
   if (!restoredWorkspace) restoreIdeas();
@@ -535,9 +653,12 @@ function init() {
   setupPanelJumps();
   renderSaveDock();
   window.addEventListener("scroll", updateFloatingJump, { passive: true });
+  window.addEventListener("scroll", queueGuideArrowRender, { passive: true });
   window.addEventListener("resize", updateFloatingJump);
+  window.addEventListener("resize", queueGuideArrowRender);
   $("#floatingJumpButton").addEventListener("click", jumpToNextPanel);
   $("#returnPromptButton").addEventListener("click", returnToPrompt);
+  renderGuide();
 }
 
 function bindEvents() {
@@ -554,6 +675,7 @@ function bindEvents() {
     $("#floatingJumpButton").hidden = true;
     $("#returnPromptButton").hidden = true;
     window.scrollTo({ top: 0, behavior: "smooth" });
+    renderGuide();
   });
 
   $("#audioFile").addEventListener("change", handleAudioFile);
@@ -581,6 +703,9 @@ function bindEvents() {
   $("#copyPromptButton").addEventListener("click", copyPrompt);
   $("#copyPluginDataButton").addEventListener("click", copyPluginData);
   $("#saveDock")?.addEventListener("click", handleSaveDockAction);
+  $("#guideModeButton")?.addEventListener("click", toggleGuideMode);
+  $("#guidePanel")?.addEventListener("click", handleGuidePanelAction);
+  $("#guideArrowLayer")?.addEventListener("click", handleGuideArrowAction);
 
   ["projectTitle", "targetLang", "lyricStyle", "songStructure", "themeInput", "narratorInput", "rhymeInput", "negativePrompt", "providerMode", "providerName", "promptFormat", "lyricsDraft", "dialectInput"].forEach((id) => {
     const element = document.getElementById(id);
@@ -604,6 +729,130 @@ function bindEvents() {
   });
 }
 
+function toggleGuideMode() {
+  state.guideMode = !state.guideMode;
+  state.guideArrows = true;
+  state.dismissedGuideArrows.clear();
+  persistGuidePreferences();
+  renderGuide();
+  toast(state.guideMode ? "已開啟指引" : "已關閉指引");
+}
+
+function handleGuidePanelAction(event) {
+  const button = event.target.closest("[data-guide-action]");
+  if (!button) return;
+  const action = button.dataset.guideAction;
+  if (action === "toggle-arrows") {
+    state.guideArrows = !state.guideArrows;
+    state.dismissedGuideArrows.clear();
+    persistGuidePreferences();
+    renderGuide();
+  }
+  if (action === "close-guide") {
+    state.guideMode = false;
+    persistGuidePreferences();
+    renderGuide();
+  }
+}
+
+function handleGuideArrowAction(event) {
+  const button = event.target.closest("[data-guide-dismiss]");
+  if (!button) return;
+  state.dismissedGuideArrows.add(button.dataset.guideDismiss);
+  renderGuideArrows();
+}
+
+function getGuideScope() {
+  if (!document.body.classList.contains("in-app")) return "home";
+  return $(".module-panel.active")?.id || "home";
+}
+
+function renderGuide() {
+  document.body.classList.toggle("guide-on", state.guideMode);
+  const modeButton = $("#guideModeButton");
+  if (modeButton) {
+    modeButton.textContent = state.guideMode ? "關閉指引" : "開啟指引";
+    modeButton.classList.toggle("active", state.guideMode);
+  }
+  const panel = $("#guidePanel");
+  const scope = getGuideScope();
+  const content = GUIDE_CONTENT[scope];
+  if (!panel) return renderGuideArrows();
+  const shouldShowPanel = state.guideMode && document.body.classList.contains("in-app") && content;
+  panel.hidden = !shouldShowPanel;
+  if (shouldShowPanel) {
+    panel.innerHTML = `<div class="guide-copy">
+        <p class="guide-kicker">新手指引</p>
+        <h3>${escapeHtml(content.title)}</h3>
+        <ol>
+          ${content.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
+        </ol>
+        ${content.source ? `<p class="guide-source">${escapeHtml(content.source)}</p>` : ""}
+      </div>
+      <div class="guide-actions">
+        <button type="button" data-guide-action="toggle-arrows">${state.guideArrows ? "隱藏箭頭" : "顯示箭頭"}</button>
+        <button type="button" data-guide-action="close-guide" aria-label="關閉指引">×</button>
+      </div>`;
+  }
+  renderGuideArrows();
+}
+
+let guideArrowFrame = 0;
+
+function queueGuideArrowRender() {
+  if (!state.guideMode || !state.guideArrows) return;
+  if (guideArrowFrame) return;
+  guideArrowFrame = window.requestAnimationFrame(() => {
+    guideArrowFrame = 0;
+    renderGuideArrows();
+  });
+}
+
+function renderGuideArrows() {
+  const layer = $("#guideArrowLayer");
+  if (!layer) return;
+  const scope = getGuideScope();
+  const content = GUIDE_CONTENT[scope];
+  if (!state.guideMode || !state.guideArrows || !content?.arrows?.length) {
+    layer.innerHTML = "";
+    return;
+  }
+  const cards = content.arrows.map((arrow) => {
+    if (state.dismissedGuideArrows.has(arrow.id)) return "";
+    const target = $(arrow.selector);
+    if (!target) return "";
+    const rect = target.getBoundingClientRect();
+    if (rect.width < 4 || rect.height < 4) return "";
+    const placement = arrow.placement || "bottom";
+    const position = getGuideArrowPosition(rect, placement);
+    return `<article class="guide-arrow-card guide-arrow-${placement}" style="left:${position.left}px; top:${position.top}px;" data-guide-for="${escapeHtml(arrow.id)}">
+      <span>${escapeHtml(arrow.label)}</span>
+      <button type="button" data-guide-dismiss="${escapeHtml(arrow.id)}" aria-label="關閉這個箭頭">×</button>
+    </article>`;
+  }).filter(Boolean).join("");
+  layer.innerHTML = cards;
+}
+
+function getGuideArrowPosition(rect, placement) {
+  const width = Math.min(260, Math.max(214, window.innerWidth - 28));
+  const height = 54;
+  let left = rect.left + rect.width / 2 - width / 2;
+  let top = rect.bottom + 12;
+  if (placement === "top") {
+    top = rect.top - height - 14;
+  } else if (placement === "left") {
+    left = rect.left - width - 14;
+    top = rect.top + rect.height / 2 - height / 2;
+  } else if (placement === "right") {
+    left = rect.right + 14;
+    top = rect.top + rect.height / 2 - height / 2;
+  }
+  return {
+    left: Math.round(Math.min(Math.max(14, left), Math.max(14, window.innerWidth - width - 14))),
+    top: Math.round(Math.min(Math.max(74, top), Math.max(74, window.innerHeight - height - 14)))
+  };
+}
+
 function openModule(moduleId) {
   document.body.classList.add("in-app");
   if (moduleId === "arrangement") state.arrangementStep = "top";
@@ -617,6 +866,8 @@ function openModule(moduleId) {
   const activePanel = document.getElementById(moduleId);
   if (activePanel) window.scrollTo({ top: 0, behavior: "smooth" });
   updateFloatingJump();
+  renderGuide();
+  window.setTimeout(renderGuide, 260);
   queueWorkspaceAutosave();
 }
 
@@ -2528,6 +2779,7 @@ function refreshWorkspaceUI() {
   updateCompletionButtons();
   updateFloatingJump();
   renderSaveDock();
+  renderGuide();
 }
 
 function renderRestoredAudioState() {
@@ -2724,6 +2976,7 @@ function startNewProject() {
   persistIdeas();
   persistWorkspace({ reason: "restart" });
   window.scrollTo({ top: 0, behavior: "smooth" });
+  renderGuide();
   toast("已重新製作；靈感庫仍保留");
 }
 
@@ -4351,7 +4604,7 @@ function buildPluginData() {
   return {
     meta: {
       app: "MotifLab",
-      version: "20260601-save1",
+      version: "20260601-guide1",
       saveName,
       exportedAt,
       autoSavedAt: getAutoSnapshot()?.savedAt || "",

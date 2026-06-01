@@ -6,7 +6,7 @@ const MOTIFLAB_DEFAULT = {
   prompt: "提示詞：尚未生成"
 };
 
-const MOTIFLAB_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260601-save1";
+const MOTIFLAB_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260601-guide1";
 const MOTIFLAB_EMPTY_META = {
   saveName: "尚未讀取存檔",
   exportedAt: ""

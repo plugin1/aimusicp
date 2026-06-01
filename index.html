@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MotifLab - AI 音樂創作工作台</title>
-    <link rel="stylesheet" href="styles.css?v=20260601-save1" />
+    <link rel="stylesheet" href="styles.css?v=20260601-guide1" />
   </head>
   <body>
     <div class="app-shell">
@@ -60,6 +60,7 @@
         <aside class="home-guide-card" aria-label="流程指引">
           <strong>工作流</strong>
           <p>可以從聲音或文字起手：哼唱整理旋律，靈感整理素材；接著到編曲和歌詞，最後把結論送進提示詞。</p>
+          <button id="guideModeButton" class="guide-mode-button" type="button">開啟指引</button>
         </aside>
 
         <aside class="save-dock" id="saveDock" aria-label="專案存檔"></aside>
@@ -99,6 +100,8 @@
             </button>
           </div>
         </header>
+
+        <section class="guide-panel" id="guidePanel" hidden></section>
 
         <div class="module-stage">
           <section class="module-panel active" id="humming" aria-labelledby="hummingTitle">
@@ -448,8 +451,9 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="guide-arrow-layer" id="guideArrowLayer"></div>
     <button class="floating-jump" id="floatingJumpButton" type="button" hidden>下一頁</button>
     <button class="floating-return" id="returnPromptButton" type="button" hidden>返回提示詞</button>
-    <script src="app.js?v=20260601-save1"></script>
+    <script src="app.js?v=20260601-guide1"></script>
   </body>
 </html>
