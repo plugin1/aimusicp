@@ -155,100 +155,10 @@ const CHOICES = {
   ]
 };
 
-const GUIDE_CONTENT = {
-  home: {
-    title: "從哪裡開始都可以",
-    source: "",
-    steps: [
-      "如果你手上有一段旋律、鼻歌或語音備忘錄，先進「哼唱」：它會把聲音整理成旋律輪廓、速度、調性感覺和字數建議。",
-      "如果你先想到的是畫面、故事、人物或一句話，先進「靈感」：它會把文字放進靈感庫，之後整理成可選的關鍵詞和歌詞素材。",
-      "前兩個系統是起點；編曲和歌詞可以之後慢慢補。最後再進「提示詞」，把四個系統的結論合成給 AI 音樂工具看的版本。"
-    ],
-    arrows: [
-      { id: "home-humming", selector: ".pos-humming", label: "有旋律或錄音，從這裡開始。", placement: "right" },
-      { id: "home-inspiration", selector: ".pos-inspiration", label: "有故事或句子，從這裡開始。", placement: "left" }
-    ]
-  },
-  humming: {
-    title: "先把聲音變成可用的旋律素材",
-    source: "",
-    steps: [
-      "你可以上傳音頻，也可以直接錄一段哼唱。小白不用唱準，只要盡量靠近麥克風、單聲部哼 10 秒以上，分析會比較穩。",
-      "按「分析旋律」後，這裡會出現速度、調性感覺、時長、字數建議、旋律記錄和簡譜。像 G 大調這類專有詞不懂也沒關係，後面會替你轉成推薦。",
-      "完成哼唱後，到編曲系統會看到比較適合這段旋律的和弦和鼓點。你可以一個個試，也可以配著哼唱一起聽；不想選和弦或鼓點也可以明確選空。",
-      "選到順耳的編曲後，可以用「循環背景」讓它在其他系統工作時一直播放，像臨時創作伴奏。"
-    ],
-    arrows: [
-      { id: "humming-upload", selector: ".upload-panel", label: "把現成音頻放進來。", placement: "bottom" },
-      { id: "humming-record", selector: ".record-panel", label: "或直接對著麥克風哼唱。", placement: "bottom" },
-      { id: "humming-analyze", selector: "#analyzeButton", label: "放入聲音後按這裡分析。", placement: "top" },
-      { id: "humming-score", selector: "#humming .score-panel", label: "分析結果會在這裡變成旋律摘要。", placement: "left" }
-    ]
-  },
-  inspiration: {
-    title: "把零散文字變成可找回、可創作的靈感",
-    source: "情緒分類參考 Alan S. Cowen 與 Dacher Keltner 於 2017 年 PNAS 發表的 27 種情緒研究；這裡把它改寫成創作標籤，不是心理診斷。",
-    steps: [
-      "先把場景、對話、夢、人物設定或一句突然想到的話寫進來，再選情緒。情緒可多選，會影響這條靈感的大框顏色和後續推薦詞。",
-      "寫完會進靈感庫。系統會先自動抓關鍵詞，但它只是草稿；你需要刪、改、補，按下 ✓ 後這條靈感才算建立完成。",
-      "建立完成後，選中這次想用的靈感原文，它就會被歌詞系統和提示詞系統調用。沒有選中、還沒確認的內容不會消失，會留在全存檔共用的靈感庫裡，之後還能再用。",
-      "找回靈感時可以按情緒多選篩選，看到的是並集：只要命中任何一個情緒標籤就會顯示。"
-    ],
-    arrows: [
-      { id: "idea-text", selector: "#ideaInput", label: "先把原始文字丟進來，不需要一次寫完整。", placement: "right" },
-      { id: "idea-emotion", selector: "#moodPicker", label: "用 27 種情緒幫這條靈感貼標籤。", placement: "top" },
-      { id: "idea-save", selector: "#saveIdeaButton", label: "加入靈感庫後再人工確認關鍵詞。", placement: "top" },
-      { id: "idea-library", selector: "#ideaList", label: "確認完成的靈感可以被選中，帶到後面系統。", placement: "left" }
-    ]
-  },
-  arrangement: {
-    title: "把旋律和情緒試成可以工作的伴奏方向",
-    source: "",
-    steps: [
-      "如果前面有哼唱分析，和弦卡片會優先推薦更貼近這段旋律的候選；如果沒有哼唱，就主要按你選的情緒推薦。",
-      "和弦和鼓點可以分開選，也可以其中一個選空。選中只是代表「這次想帶去提示詞」，不代表你不能繼續試聽別的。",
-      "「和弦+鼓點」用來聽整體風格；「旋律+編曲」會把哼唱旋律和伴奏一起放出來，幫你判斷合不合。",
-      "確定方向後，按「循環背景」可以讓它在寫詞或整理提示詞時一直當背景播放。"
-    ],
-    arrows: [
-      { id: "arrangement-chord", selector: "#arrangement .chord-column", label: "先挑歌曲的情緒底色。", placement: "right" },
-      { id: "arrangement-drum", selector: "#arrangement .drum-column", label: "再挑身體感和節奏推進。", placement: "left" },
-      { id: "arrangement-melody", selector: "#playMelodyComboButton", label: "有哼唱時，用這裡聽旋律和編曲是否合拍。", placement: "bottom" },
-      { id: "arrangement-loop", selector: "#loopComboButton", label: "喜歡的組合可以全程循環。", placement: "bottom" }
-    ]
-  },
-  lyrics: {
-    title: "把靈感、情緒和語言口味整理成歌詞草稿",
-    source: "",
-    steps: [
-      "左側先確認這次要帶入哪些靈感，以及哪些關鍵詞真的要進入創作。只有在這裡選中的詞，才會進提示詞和歌詞生成。",
-      "演唱視角、歌詞口吻、段落骨架都可以留空；選了只是給 AI 更多方向。選段落骨架時，草稿區會先出現主歌/副歌的寫作指引。",
-      "右側可以調整跨語詞庫、方言/發音口味、核心主題、歌詞情緒和押韻尾音。情緒會改變背景漸變，也會影響參考詞和意象。",
-      "參考詞是可選素材，不是硬塞推薦；你可以挑押韻詞、意象、同義替換，再生成或手寫歌詞草稿。寫完按 ✓，下一步才會前往提示詞系統。"
-    ],
-    arrows: [
-      { id: "lyrics-ideas", selector: "#lyricsIdeaBrief", label: "這裡是本次選中的靈感原文。", placement: "right" },
-      { id: "lyrics-keywords", selector: "#selectedKeywordShelf", label: "只勾真正要寫進歌裡的關鍵詞。", placement: "bottom" },
-      { id: "lyrics-emotion", selector: "#lyricMoodPicker", label: "歌詞情緒會影響背景色與推薦詞。", placement: "left" },
-      { id: "lyrics-draft", selector: "#lyricsDraft", label: "草稿可以生成，也可以自己寫後再整理。", placement: "left" }
-    ]
-  },
-  prompt: {
-    title: "最後把四個系統的結論合成提示詞",
-    source: "",
-    steps: [
-      "最上方四個小 note 是互動總結：哼唱、編曲、靈感、歌詞各自保留自己的結論，點進去可以回到對應位置修改。",
-      "輸出格式決定提示詞長短和用途；限制條件是告訴 AI 不要做什麼，例如不要雜訊、不要人聲糊掉、不要編曲過滿。",
-      "AI 工具接入先用「複製到平台」最穩。Suno 可搭配右下角 M 插件，在 Suno 頁面隨時查看和編輯這些結論詞；API key 這類鑰匙正式產品要放後端，不能直接放前端。",
-      "檢查生成結果後按 ✓，下一頁會打開目標平台。預設是 Suno，也可以改成 Gemini / Lyria、Udio 或其他工具。"
-    ],
-    arrows: [
-      { id: "prompt-notes", selector: "#promptSystemNotes", label: "四個系統的結論先在這裡對齊。", placement: "bottom" },
-      { id: "prompt-settings", selector: "#promptWorkbench", label: "再決定輸出格式、限制和平台。", placement: "right" },
-      { id: "prompt-result", selector: "#promptOutput", label: "生成結果檢查完，按 ✓ 就能去 AI 音樂工具。", placement: "left" }
-    ]
-  }
-};
+const HOME_GUIDE_CALLOUTS = [
+  { id: "home-humming", selector: ".pos-humming", label: "旋律或錄音 → 哼唱" },
+  { id: "home-inspiration", selector: ".pos-inspiration", label: "故事或句子 → 靈感" }
+];
 
 const PROVIDER_LINKS = {
   Suno: "https://suno.com/",
@@ -718,6 +628,7 @@ function bindEvents() {
       updateCompletionButtons();
       updateProgress();
       updateFloatingJump();
+      renderGuide();
       queueWorkspaceAutosave();
     });
   });
@@ -725,8 +636,11 @@ function bindEvents() {
     state.promptDone = false;
     updateCompletionButtons();
     updateFloatingJump();
+    renderGuide();
     queueWorkspaceAutosave();
   });
+  $("#ideaInput")?.addEventListener("input", renderGuide);
+  $("#notationInput")?.addEventListener("input", renderGuide);
 }
 
 function toggleGuideMode() {
@@ -759,7 +673,7 @@ function handleGuideArrowAction(event) {
   const button = event.target.closest("[data-guide-dismiss]");
   if (!button) return;
   state.dismissedGuideArrows.add(button.dataset.guideDismiss);
-  renderGuideArrows();
+  renderGuideTargets();
 }
 
 function getGuideScope() {
@@ -776,25 +690,22 @@ function renderGuide() {
   }
   const panel = $("#guidePanel");
   const scope = getGuideScope();
-  const content = GUIDE_CONTENT[scope];
-  if (!panel) return renderGuideArrows();
-  const shouldShowPanel = state.guideMode && document.body.classList.contains("in-app") && content;
+  const step = getCurrentGuideStep(scope);
+  if (!panel) return renderGuideTargets();
+  const shouldShowPanel = state.guideMode && document.body.classList.contains("in-app") && step;
   panel.hidden = !shouldShowPanel;
   if (shouldShowPanel) {
     panel.innerHTML = `<div class="guide-copy">
-        <p class="guide-kicker">新手指引</p>
-        <h3>${escapeHtml(content.title)}</h3>
-        <ol>
-          ${content.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
-        </ol>
-        ${content.source ? `<p class="guide-source">${escapeHtml(content.source)}</p>` : ""}
+        <span class="guide-kicker">指引</span>
+        <span class="guide-line">${escapeHtml(step.text)}</span>
+        ${step.tip ? `<span class="guide-mini-tip has-tip" data-tip="${escapeHtml(step.tip)}">?</span>` : ""}
       </div>
       <div class="guide-actions">
-        <button type="button" data-guide-action="toggle-arrows">${state.guideArrows ? "隱藏箭頭" : "顯示箭頭"}</button>
+        <button type="button" data-guide-action="toggle-arrows">${state.guideArrows ? "隱藏定位" : "顯示定位"}</button>
         <button type="button" data-guide-action="close-guide" aria-label="關閉指引">×</button>
       </div>`;
   }
-  renderGuideArrows();
+  renderGuideTargets();
 }
 
 let guideArrowFrame = 0;
@@ -804,53 +715,102 @@ function queueGuideArrowRender() {
   if (guideArrowFrame) return;
   guideArrowFrame = window.requestAnimationFrame(() => {
     guideArrowFrame = 0;
-    renderGuideArrows();
+    renderGuideTargets();
   });
 }
 
-function renderGuideArrows() {
+function getCurrentGuideStep(scope) {
+  if (scope === "humming") {
+    if (!state.sourceBuffer && !$("#notationInput")?.value.trim()) {
+      return { id: "humming-source", text: "先上傳音頻，或直接錄一段哼唱。", target: ".source-grid" };
+    }
+    if (!state.analysis?.notes?.length) {
+      return { id: "humming-analyze", text: "聲音放好了，現在按「分析旋律」。", target: "#analyzeButton" };
+    }
+    if (state.hummingStep !== "score") {
+      return { id: "humming-score", text: "看旋律預覽：速度、調性、簡譜和字數都在這裡。", target: "#humming .score-panel" };
+    }
+    return { id: "humming-next", text: "不懂樂理也沒關係，下一頁會去試和弦與鼓點。", target: "#floatingJumpButton" };
+  }
+  if (scope === "inspiration") {
+    const ideaText = $("#ideaInput")?.value.trim() || "";
+    const draftIdea = state.ideas.find((idea) => !isIdeaReviewed(idea));
+    const reviewedIdea = state.ideas.find((idea) => isIdeaReviewed(idea) && !state.selectedIdeaIds.has(idea.id));
+    if (!ideaText && !state.ideas.length) {
+      return { id: "idea-write", text: "先寫下一段文字靈感，不需要完整。", target: "#ideaInput" };
+    }
+    if (ideaText && state.selectedMoods.size === 0) {
+      return {
+        id: "idea-mood",
+        text: "替這條靈感選一個或多個情緒。",
+        target: "#moodPicker",
+        tip: "情緒分類參考 Alan S. Cowen 與 Dacher Keltner 2017 年 PNAS 的 27 種情緒研究；這裡只作創作標籤。"
+      };
+    }
+    if (ideaText) return { id: "idea-save", text: "按「加入靈感」，它會先進草稿。", target: "#saveIdeaButton" };
+    if (draftIdea) return { id: "idea-review", text: "先改好關鍵詞，再按 ✓ 確認。", target: ".idea-card.draft .idea-primary-action" };
+    if (reviewedIdea) return { id: "idea-select", text: "再按「選中」，本次作品才會帶入。", target: ".idea-card.reviewed .idea-primary-action" };
+    return { id: "idea-next", text: "選中的靈感會在歌詞和提示詞系統出現。", target: "#floatingJumpButton" };
+  }
+  if (scope === "arrangement") {
+    if (!hasChordChoice()) return { id: "arrangement-chord", text: "先挑和弦；不需要就選「不使用和弦」。", target: "#arrangement .chord-column" };
+    if (!hasDrumChoice()) return { id: "arrangement-drum", text: "再挑鼓點；也可以明確選空。", target: "#arrangement .drum-column" };
+    if (!state.arrangementAuditioned) return { id: "arrangement-play", text: "按播放試聽；有哼唱可試「旋律+編曲」。", target: ".arrangement-actions" };
+    return { id: "arrangement-loop", text: "喜歡這個方向，就開循環背景繼續工作。", target: "#loopComboButton" };
+  }
+  if (scope === "lyrics") {
+    if (!state.selectedIdeaIds.size) return { id: "lyrics-idea", text: "先確認這次要帶入哪些靈感。", target: "#lyricsIdeaBrief" };
+    if (!state.selectedLyricKeywords.size) return { id: "lyrics-keywords", text: "只勾真正要寫進歌裡的關鍵詞。", target: "#selectedKeywordShelf" };
+    if (!state.lyricMoods.size) return { id: "lyrics-mood", text: "選歌詞情緒，背景和推薦詞會一起變。", target: "#lyricMoodPicker" };
+    if (!$("#themeInput")?.value.trim()) return { id: "lyrics-theme", text: "補一個核心主題，或沿用靈感推導。", target: "#themeInput" };
+    if (!$("#lyricsDraft")?.value.trim()) return { id: "lyrics-draft", text: "可以生成骨架，也可以直接自己寫。", target: "#lyricsDraft" };
+    if (!state.lyricsDone) return { id: "lyrics-done", text: "草稿確認後按 ✓，下一頁才進提示詞。", target: "#lyricsDoneButton" };
+    return { id: "lyrics-next", text: "歌詞已標記完成，下一頁進提示詞。", target: "#floatingJumpButton" };
+  }
+  if (scope === "prompt") {
+    if (state.promptStep === "notes") return { id: "prompt-notes", text: "先看四個系統 note，不對就點回去修。", target: "#promptSystemNotes" };
+    if (!$("#promptOutput")?.value.trim()) return { id: "prompt-generate", text: "選格式和平台後，按「生成提示詞」。", target: "#generatePromptButton" };
+    if (!state.promptDone) return { id: "prompt-done", text: "檢查右側結果，完成後按 ✓。", target: "#promptDoneButton" };
+    return { id: "prompt-next", text: "下一頁會打開目標平台；Suno 可搭配 M 插件。", target: "#floatingJumpButton" };
+  }
+  return null;
+}
+
+function renderGuideTargets() {
   const layer = $("#guideArrowLayer");
+  $$(".guide-target").forEach((element) => element.classList.remove("guide-target"));
   if (!layer) return;
   const scope = getGuideScope();
-  const content = GUIDE_CONTENT[scope];
-  if (!state.guideMode || !state.guideArrows || !content?.arrows?.length) {
+  if (!state.guideMode || !state.guideArrows) {
     layer.innerHTML = "";
     return;
   }
-  const cards = content.arrows.map((arrow) => {
-    if (state.dismissedGuideArrows.has(arrow.id)) return "";
-    const target = $(arrow.selector);
-    if (!target) return "";
-    const rect = target.getBoundingClientRect();
-    if (rect.width < 4 || rect.height < 4) return "";
-    const placement = arrow.placement || "bottom";
-    const position = getGuideArrowPosition(rect, placement);
-    return `<article class="guide-arrow-card guide-arrow-${placement}" style="left:${position.left}px; top:${position.top}px;" data-guide-for="${escapeHtml(arrow.id)}">
-      <span>${escapeHtml(arrow.label)}</span>
-      <button type="button" data-guide-dismiss="${escapeHtml(arrow.id)}" aria-label="關閉這個箭頭">×</button>
-    </article>`;
-  }).filter(Boolean).join("");
-  layer.innerHTML = cards;
+  if (scope === "home") {
+    renderHomeGuideCallouts(layer);
+    return;
+  }
+  layer.innerHTML = "";
+  const step = getCurrentGuideStep(scope);
+  const target = step?.target ? $(step.target) : null;
+  if (target) target.classList.add("guide-target");
 }
 
-function getGuideArrowPosition(rect, placement) {
-  const width = Math.min(260, Math.max(214, window.innerWidth - 28));
-  const height = 54;
-  let left = rect.left + rect.width / 2 - width / 2;
-  let top = rect.bottom + 12;
-  if (placement === "top") {
-    top = rect.top - height - 14;
-  } else if (placement === "left") {
-    left = rect.left - width - 14;
-    top = rect.top + rect.height / 2 - height / 2;
-  } else if (placement === "right") {
-    left = rect.right + 14;
-    top = rect.top + rect.height / 2 - height / 2;
-  }
-  return {
-    left: Math.round(Math.min(Math.max(14, left), Math.max(14, window.innerWidth - width - 14))),
-    top: Math.round(Math.min(Math.max(74, top), Math.max(74, window.innerHeight - height - 14)))
-  };
+function renderHomeGuideCallouts(layer) {
+  const cards = HOME_GUIDE_CALLOUTS.map((item) => {
+    if (state.dismissedGuideArrows.has(item.id)) return "";
+    const target = $(item.selector);
+    if (!target) return "";
+    target.classList.add("guide-target");
+    const rect = target.getBoundingClientRect();
+    const width = 170;
+    const left = Math.min(Math.max(14, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 14);
+    const top = Math.min(Math.max(18, rect.top - 50), window.innerHeight - 70);
+    return `<article class="home-guide-callout above" style="left:${Math.round(left)}px; top:${Math.round(top)}px">
+      <span>${escapeHtml(item.label)}</span>
+      <button type="button" data-guide-dismiss="${escapeHtml(item.id)}" aria-label="關閉這個提示">×</button>
+    </article>`;
+  }).join("");
+  layer.innerHTML = cards;
 }
 
 function openModule(moduleId) {
@@ -1049,6 +1009,7 @@ function renderEmotionPicker(selector, selectedSet, scope) {
       recommendLyrics();
       updatePrompt();
       updateProgress();
+      renderGuide();
     });
   });
 }
@@ -1080,6 +1041,7 @@ function renderChoiceGroup(containerSelector, inputSelector, choices) {
       input.value = button.dataset.choiceValue;
       input.dispatchEvent(new Event("input", { bubbles: true }));
       renderChoiceGroup(containerSelector, inputSelector, choices);
+      renderGuide();
     });
   });
 }
@@ -1137,6 +1099,7 @@ function markArrangementChanged() {
   updatePrompt();
   updateProgress();
   updateFloatingJump();
+  renderGuide();
 }
 
 function flashElement(selector) {
@@ -1171,6 +1134,7 @@ function toggleLyricsDone() {
   state.lyricsDone = !state.lyricsDone;
   updateCompletionButtons();
   updateFloatingJump();
+  renderGuide();
   queueWorkspaceAutosave();
   toast(state.lyricsDone ? "歌詞草稿已標記完成" : "歌詞草稿已取消完成");
 }
@@ -1179,6 +1143,7 @@ function togglePromptDone() {
   state.promptDone = !state.promptDone;
   updateCompletionButtons();
   updateFloatingJump();
+  renderGuide();
   queueWorkspaceAutosave();
   toast(state.promptDone ? "提示詞已標記檢查完成" : "提示詞已取消完成");
 }
@@ -1262,6 +1227,7 @@ async function handleAudioFile(event) {
     $("#playInputButton").disabled = false;
     renderWaveform(state.sourceBuffer);
     queueWorkspaceAutosave();
+    renderGuide();
     toast("音頻已載入");
   } catch (error) {
     console.error(error);
@@ -1365,6 +1331,7 @@ async function loadRecordedBlob(blob) {
     $("#playInputButton").disabled = false;
     renderWaveform(state.sourceBuffer);
     queueWorkspaceAutosave();
+    renderGuide();
     toast("錄音已載入");
   } catch (error) {
     console.error(error);
@@ -1401,6 +1368,7 @@ function analyzeLoadedAudio() {
   renderDrumCards();
   updatePrompt();
   updateProgress();
+  renderGuide();
   toast("旋律分析完成");
 }
 
@@ -1450,6 +1418,7 @@ function applyNotationPreview() {
   renderDrumCards();
   updatePrompt();
   updateProgress();
+  renderGuide();
   toast("已套用簡譜預覽");
 }
 
@@ -1983,6 +1952,7 @@ function saveIdea() {
   recommendLyrics();
   updatePrompt();
   updateProgress();
+  renderGuide();
 }
 
 function clearIdeas() {
@@ -2003,6 +1973,7 @@ function clearIdeas() {
   renderLyricsIdeaBrief();
   updatePrompt();
   updateProgress();
+  renderGuide();
   toast("靈感已清空");
 }
 
@@ -2421,6 +2392,7 @@ function finishKeywordMutation(message, { alreadyRebuilt = false } = {}) {
   recommendLyrics();
   updatePrompt();
   updateProgress();
+  renderGuide();
   toast(message);
 }
 
@@ -2472,6 +2444,7 @@ function handleIdeaPrimaryAction(ideaId) {
   renderDrumCards();
   renderLyricsIdeaBrief();
   updatePrompt();
+  renderGuide();
 }
 
 function addKeywordByPrompt() {
@@ -2951,12 +2924,12 @@ function renderSaveDock() {
       </article>`).join("")
     : `<p>收藏會收在這裡。</p>`;
   dock.innerHTML = `<div class="save-head">
-      <strong>存檔</strong>
+      <strong>製作檔案</strong>
       <button class="save-help has-tip" data-tip="作品存在此瀏覽器本機。自動存檔會隨修改更新；手動欄位適合保留版本；收藏不佔欄位。清除網站資料會刪除這些內容。" type="button" aria-label="存檔說明">?</button>
     </div>
     <div class="save-primary-actions">
-      <button class="save-main-action has-tip" data-tip="${hasAuto ? "讀取離開時的自動存檔。" : "從哼唱系統開始新作品。"}" type="button" data-save-action="${hasAuto ? "continue" : "start"}">${hasAuto ? "繼續" : "開始"}</button>
-      <button class="has-tip" data-tip="清空本次製作並重新開始；靈感庫會保留。" type="button" data-save-action="restart">${hasAuto ? "新作" : "空白"}</button>
+      <button class="save-main-action has-tip" data-tip="${hasAuto ? "讀取離開時的自動存檔。" : "從哼唱系統開始新作品。"}" type="button" data-save-action="${hasAuto ? "continue" : "start"}">${hasAuto ? "繼續製作" : "開始製作"}</button>
+      <button class="save-reset-action has-tip" data-tip="清空本次製作並重新開始；靈感庫會保留。" type="button" data-save-action="restart">重新製作</button>
     </div>
     <article class="save-auto-card${hasAuto ? " filled" : ""} has-tip" data-tip="${hasAuto ? escapeHtml(summarizeSave(autoSnapshot)) : "每次修改會自動更新；回首頁會保存一次大的版本。"}">
       <div class="save-card-top">
@@ -4021,6 +3994,7 @@ async function playArrangementCombo({ loop = false, includeMelody = false } = {}
   state.arrangementStep = "top";
   state.arrangementAuditioned = true;
   updateFloatingJump();
+  renderGuide();
   let ctx;
   try {
     ctx = await getAudioContext();
@@ -4640,7 +4614,7 @@ function buildPluginData() {
   return {
     meta: {
       app: "MotifLab",
-      version: "20260601-saveui1",
+      version: "20260601-guidefix1",
       saveName,
       exportedAt,
       autoSavedAt: getAutoSnapshot()?.savedAt || "",
