@@ -1,4 +1,4 @@
-.motiflab-root {
+.muusic-root {
   position: fixed;
   right: 18px;
   bottom: 18px;
@@ -7,7 +7,7 @@
   color: #171717;
 }
 
-.motiflab-launch {
+.muusic-launch {
   width: 52px;
   height: 52px;
   border: 1px solid rgba(17, 17, 17, 0.12);
@@ -21,7 +21,7 @@
   backdrop-filter: blur(14px);
 }
 
-.motiflab-panel {
+.muusic-panel {
   display: none;
   width: min(440px, calc(100vw - 28px));
   max-height: min(720px, calc(100vh - 36px));
@@ -35,15 +35,15 @@
   backdrop-filter: blur(16px);
 }
 
-.motiflab-root.open .motiflab-panel {
+.muusic-root.open .muusic-panel {
   display: grid;
 }
 
-.motiflab-root.open .motiflab-launch {
+.muusic-root.open .muusic-launch {
   display: none;
 }
 
-.motiflab-head {
+.muusic-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -56,16 +56,16 @@
     #ffffff;
 }
 
-.motiflab-head strong {
+.muusic-head strong {
   display: block;
   font-size: 16px;
 }
 
-.motiflab-head small {
+.muusic-head small {
   color: #6f6f6f;
 }
 
-.motiflab-icon {
+.muusic-icon {
   border: 1px solid rgba(17, 17, 17, 0.12);
   background: white;
   color: #111111;
@@ -75,7 +75,7 @@
   font-weight: 900;
 }
 
-.motiflab-tabs {
+.muusic-tabs {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
@@ -84,11 +84,11 @@
   background: rgba(255, 255, 255, 0.88);
 }
 
-.motiflab-tab {
-  --motif-color: #111111;
+.muusic-tab {
+  --muusic-color: #111111;
   border: 1px solid rgba(17, 17, 17, 0.1);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--motif-color) 8%, #ffffff);
+  background: color-mix(in srgb, var(--muusic-color) 8%, #ffffff);
   color: #171717;
   min-height: 54px;
   font-weight: 850;
@@ -97,43 +97,43 @@
   align-content: center;
 }
 
-.motiflab-tab small {
+.muusic-tab small {
   color: #8a8a8a;
   font-size: 10px;
   font-weight: 800;
 }
 
-.motiflab-tab span {
+.muusic-tab span {
   font-size: 13px;
 }
 
-.motiflab-tab.active {
-  border-color: color-mix(in srgb, var(--motif-color) 62%, #111111);
+.muusic-tab.active {
+  border-color: color-mix(in srgb, var(--muusic-color) 62%, #111111);
   color: #111111;
-  background: color-mix(in srgb, var(--motif-color) 24%, #ffffff);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--motif-color) 18%, transparent);
+  background: color-mix(in srgb, var(--muusic-color) 24%, #ffffff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--muusic-color) 18%, transparent);
 }
 
-.motiflab-body {
+.muusic-body {
   overflow: auto;
   max-height: 520px;
   padding: 12px 14px 14px;
 }
 
-.motiflab-field {
+.muusic-field {
   display: grid;
   gap: 6px;
   margin-bottom: 12px;
 }
 
-.motiflab-field label {
+.muusic-field label {
   color: #6f6f6f;
   font-size: 12px;
   font-weight: 800;
 }
 
-.motiflab-field textarea,
-.motiflab-import {
+.muusic-field textarea,
+.muusic-import {
   width: 100%;
   min-height: 92px;
   resize: vertical;
@@ -146,34 +146,34 @@
   color: #171717;
 }
 
-.motiflab-actions {
+.muusic-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 8px;
 }
 
-.motiflab-primary,
-.motiflab-secondary {
+.muusic-primary,
+.muusic-secondary {
   min-height: 38px;
   border-radius: 10px;
   font-weight: 850;
   padding: 0 12px;
 }
 
-.motiflab-primary {
+.muusic-primary {
   border: 0;
   background: #111111;
   color: white;
 }
 
-.motiflab-secondary {
+.muusic-secondary {
   border: 1px solid rgba(17, 17, 17, 0.12);
   background: white;
   color: #111111;
 }
 
-.motiflab-note {
+.muusic-note {
   padding: 10px;
   border: 1px solid rgba(17, 17, 17, 0.1);
   border-radius: 10px;
@@ -185,7 +185,7 @@
   font-size: 13px;
 }
 
-.motiflab-toast {
+.muusic-toast {
   display: none;
   margin-top: 8px;
   color: #111111;
@@ -193,6 +193,6 @@
   font-weight: 800;
 }
 
-.motiflab-toast.show {
+.muusic-toast.show {
   display: block;
 }

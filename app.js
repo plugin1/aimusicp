@@ -9,12 +9,16 @@ const ICONS = {
 
 const STORAGE_KEYS = {
   legacyIdeas: "motiflab-state",
-  workspace: "motiflab-workspace-v2",
-  legacyWorkspace: "motiflab-workspace-v1",
-  slots: "motiflab-save-slots-v2",
-  legacySlots: "motiflab-save-slots-v1",
-  archives: "motiflab-save-archives-v1",
-  guide: "motiflab-guide-state-v1"
+  workspace: "muusic-workspace-v2",
+  legacyWorkspace: "motiflab-workspace-v2",
+  olderWorkspace: "motiflab-workspace-v1",
+  slots: "muusic-save-slots-v2",
+  legacySlots: "motiflab-save-slots-v2",
+  olderSlots: "motiflab-save-slots-v1",
+  archives: "muusic-save-archives-v1",
+  legacyArchives: "motiflab-save-archives-v1",
+  guide: "muusic-guide-state-v1",
+  legacyGuide: "motiflab-guide-state-v1"
 };
 
 const AUDIO_DB_NAME = "motiflab-audio-store";
@@ -523,7 +527,8 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function loadGuidePreferences() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.guide) || "{}");
+    const raw = localStorage.getItem(STORAGE_KEYS.guide) || localStorage.getItem(STORAGE_KEYS.legacyGuide);
+    const parsed = JSON.parse(raw || "{}");
     state.guideMode = Boolean(parsed.guideMode);
     state.guideArrows = parsed.guideArrows !== false;
   } catch (error) {
@@ -2626,7 +2631,9 @@ function queueWorkspaceAutosave() {
 }
 
 function restoreWorkspace() {
-  const raw = localStorage.getItem(STORAGE_KEYS.workspace) || localStorage.getItem(STORAGE_KEYS.legacyWorkspace);
+  const raw = localStorage.getItem(STORAGE_KEYS.workspace)
+    || localStorage.getItem(STORAGE_KEYS.legacyWorkspace)
+    || localStorage.getItem(STORAGE_KEYS.olderWorkspace);
   if (!raw) return false;
   try {
     applyWorkspaceSnapshot(JSON.parse(raw), { silent: true });
@@ -2779,7 +2786,9 @@ function renderRestoredAudioState() {
 
 function getSaveSlots() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.slots) || localStorage.getItem(STORAGE_KEYS.legacySlots);
+    const raw = localStorage.getItem(STORAGE_KEYS.slots)
+      || localStorage.getItem(STORAGE_KEYS.legacySlots)
+      || localStorage.getItem(STORAGE_KEYS.olderSlots);
     const parsed = JSON.parse(raw || "{}") || {};
     const normalized = {};
     Object.entries(parsed).forEach(([id, record]) => {
@@ -2798,7 +2807,8 @@ function setSaveSlots(slots) {
 
 function getSaveArchives() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.archives) || "[]") || [];
+    const raw = localStorage.getItem(STORAGE_KEYS.archives) || localStorage.getItem(STORAGE_KEYS.legacyArchives);
+    return JSON.parse(raw || "[]") || [];
   } catch (error) {
     return [];
   }
@@ -2822,7 +2832,9 @@ function normalizeSaveRecord(id, record) {
 
 function getAutoSnapshot() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.workspace) || localStorage.getItem(STORAGE_KEYS.legacyWorkspace);
+    const raw = localStorage.getItem(STORAGE_KEYS.workspace)
+      || localStorage.getItem(STORAGE_KEYS.legacyWorkspace)
+      || localStorage.getItem(STORAGE_KEYS.olderWorkspace);
     return raw ? JSON.parse(raw) : null;
   } catch (error) {
     return null;
@@ -2966,6 +2978,8 @@ function startNewProject() {
   if (!ok) return;
   stopScheduledAudio({ silent: true });
   localStorage.removeItem(STORAGE_KEYS.workspace);
+  localStorage.removeItem(STORAGE_KEYS.legacyWorkspace);
+  localStorage.removeItem(STORAGE_KEYS.olderWorkspace);
   const keptIdeas = state.ideas;
   applyWorkspaceSnapshot({ fields: FIELD_DEFAULTS, ideas: keptIdeas, selectedIdeaIds: [] }, { silent: true });
   state.ideas = keptIdeas;
@@ -4613,12 +4627,12 @@ function buildPluginData() {
   };
   return {
     meta: {
-      app: "MotifLab",
-      version: "20260601-guidefix1",
+      app: "MuUsic",
+      version: "20260601-muusic1",
       saveName,
       exportedAt,
       autoSavedAt: getAutoSnapshot()?.savedAt || "",
-      storage: "此資料來自 MotifLab 本機存檔；插件只能讀取你匯入的 JSON。"
+      storage: "此資料來自 MuUsic 本機存檔；插件只能讀取你匯入的 JSON。"
     },
     systems,
     ...systems

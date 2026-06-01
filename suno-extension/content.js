@@ -1,4 +1,4 @@
-const MOTIFLAB_DEFAULT = {
+const MUUSIC_DEFAULT = {
   humming: "旋律：尚未填寫\n節奏/字數：尚未填寫",
   inspiration: "靈感：尚未填寫\n情緒：尚未選擇",
   lyrics: "主題：尚未填寫\n歌詞方向：尚未填寫",
@@ -6,13 +6,13 @@ const MOTIFLAB_DEFAULT = {
   prompt: "提示詞：尚未生成"
 };
 
-const MOTIFLAB_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260601-guidefix1";
-const MOTIFLAB_EMPTY_META = {
+const MUUSIC_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260601-muusic1";
+const MUUSIC_EMPTY_META = {
   saveName: "尚未讀取存檔",
   exportedAt: ""
 };
 
-const MOTIFLAB_TABS = [
+const MUUSIC_TABS = [
   ["humming", "哼唱", "聲音線", "#e7a7bd"],
   ["arrangement", "編曲", "聲音線", "#c8a074"],
   ["inspiration", "靈感", "文字線", "#f1c84f"],
@@ -20,117 +20,117 @@ const MOTIFLAB_TABS = [
   ["prompt", "提示詞", "整理出口", "#918ee8"]
 ];
 
-let motiflabState = { ...MOTIFLAB_DEFAULT };
-let motiflabMeta = { ...MOTIFLAB_EMPTY_META };
-let motiflabActive = "humming";
+let muusicState = { ...MUUSIC_DEFAULT };
+let muusicMeta = { ...MUUSIC_EMPTY_META };
+let muusicActive = "humming";
 
-if (!window.__motiflabSunoLoaded) {
-  window.__motiflabSunoLoaded = true;
-  initMotifLab();
+if (!window.__muusicSunoLoaded) {
+  window.__muusicSunoLoaded = true;
+  initMuUsic();
 }
 
-async function initMotifLab() {
-  const saved = await chrome.storage.local.get(["motiflabConclusions", "motiflabMeta"]);
-  motiflabState = { ...MOTIFLAB_DEFAULT, ...(saved.motiflabConclusions || {}) };
-  motiflabMeta = { ...MOTIFLAB_EMPTY_META, ...(saved.motiflabMeta || {}) };
-  renderMotifLab();
+async function initMuUsic() {
+  const saved = await chrome.storage.local.get(["muusicConclusions", "muusicMeta", "motiflabConclusions", "motiflabMeta"]);
+  muusicState = { ...MUUSIC_DEFAULT, ...(saved.muusicConclusions || saved.motiflabConclusions || {}) };
+  muusicMeta = { ...MUUSIC_EMPTY_META, ...(saved.muusicMeta || saved.motiflabMeta || {}) };
+  renderMuUsic();
 }
 
-function renderMotifLab() {
-  if (document.querySelector(".motiflab-root")) return;
+function renderMuUsic() {
+  if (document.querySelector(".muusic-root")) return;
   const root = document.createElement("div");
-  root.className = "motiflab-root";
+  root.className = "muusic-root";
   root.innerHTML = `
-    <button class="motiflab-launch" type="button" title="打開 MotifLab">M</button>
-    <section class="motiflab-panel" aria-label="MotifLab Suno 輔助面板">
-      <header class="motiflab-head">
+    <button class="muusic-launch" type="button" title="打開 MuUsic">M</button>
+    <section class="muusic-panel" aria-label="MuUsic Suno 輔助面板">
+      <header class="muusic-head">
         <div>
-          <strong>MotifLab</strong>
+          <strong>MuUsic</strong>
           <small data-save-source>尚未讀取存檔</small>
         </div>
-        <button class="motiflab-icon" type="button" data-close>×</button>
+        <button class="muusic-icon" type="button" data-close>×</button>
       </header>
-      <nav class="motiflab-tabs">
-        ${MOTIFLAB_TABS.map(([id, label, group, color]) => `<button class="motiflab-tab" style="--motif-color:${color}" data-tab="${id}" type="button"><small>${group}</small><span>${label}</span></button>`).join("")}
+      <nav class="muusic-tabs">
+        ${MUUSIC_TABS.map(([id, label, group, color]) => `<button class="muusic-tab" style="--muusic-color:${color}" data-tab="${id}" type="button"><small>${group}</small><span>${label}</span></button>`).join("")}
       </nav>
-      <div class="motiflab-body">
-        <div class="motiflab-field">
+      <div class="muusic-body">
+        <div class="muusic-field">
           <label data-current-label></label>
           <textarea data-current-text></textarea>
         </div>
-        <div class="motiflab-actions">
-          <button class="motiflab-primary" type="button" data-copy-current>複製本段</button>
-          <button class="motiflab-secondary" type="button" data-copy-all>複製全部</button>
-          <button class="motiflab-secondary" type="button" data-fill-focused>填入當前輸入框</button>
-          <button class="motiflab-secondary" type="button" data-open-web>打開網頁版</button>
+        <div class="muusic-actions">
+          <button class="muusic-primary" type="button" data-copy-current>複製本段</button>
+          <button class="muusic-secondary" type="button" data-copy-all>複製全部</button>
+          <button class="muusic-secondary" type="button" data-fill-focused>填入當前輸入框</button>
+          <button class="muusic-secondary" type="button" data-open-web>打開網頁版</button>
         </div>
         <hr />
-        <div class="motiflab-field">
-          <label>從 MotifLab 網頁匯入 JSON</label>
-          <textarea class="motiflab-import" data-import-box placeholder="在網頁版提示詞系統點「複製插件資料」，再貼到這裡。"></textarea>
+        <div class="muusic-field">
+          <label>從 MuUsic 網頁匯入 JSON</label>
+          <textarea class="muusic-import" data-import-box placeholder="在網頁版提示詞系統點「複製插件資料」，再貼到這裡。"></textarea>
         </div>
-        <div class="motiflab-actions">
-          <button class="motiflab-secondary" type="button" data-import>匯入</button>
-          <button class="motiflab-secondary" type="button" data-reset>重置</button>
+        <div class="muusic-actions">
+          <button class="muusic-secondary" type="button" data-import>匯入</button>
+          <button class="muusic-secondary" type="button" data-reset>重置</button>
         </div>
-        <p class="motiflab-note" data-empty-note>如果不是從 MotifLab 的 ✓ 跳轉過來，請先回網頁版選擇「自動存檔」或某個手動存檔，再到提示詞系統複製插件資料貼回這裡。插件不會自動讀取另一個網站的本機存檔。</p>
-        <div class="motiflab-toast" data-toast></div>
+        <p class="muusic-note" data-empty-note>如果不是從 MuUsic 的 ✓ 跳轉過來，請先回網頁版選擇「自動存檔」或某個手動存檔，再到提示詞系統複製插件資料貼回這裡。插件不會自動讀取另一個網站的本機存檔。</p>
+        <div class="muusic-toast" data-toast></div>
       </div>
     </section>
   `;
   document.documentElement.appendChild(root);
-  bindMotifLab(root);
-  updateMotifLabUI(root);
+  bindMuUsic(root);
+  updateMuUsicUI(root);
 }
 
-function bindMotifLab(root) {
-  root.querySelector(".motiflab-launch").addEventListener("click", () => root.classList.add("open"));
+function bindMuUsic(root) {
+  root.querySelector(".muusic-launch").addEventListener("click", () => root.classList.add("open"));
   root.querySelector("[data-close]").addEventListener("click", () => root.classList.remove("open"));
   root.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       saveCurrentText(root);
-      motiflabActive = button.dataset.tab;
-      updateMotifLabUI(root);
+      muusicActive = button.dataset.tab;
+      updateMuUsicUI(root);
     });
   });
   root.querySelector("[data-current-text]").addEventListener("input", () => saveCurrentText(root));
-  root.querySelector("[data-copy-current]").addEventListener("click", () => copyText(motiflabState[motiflabActive], root, "已複製本段"));
+  root.querySelector("[data-copy-current]").addEventListener("click", () => copyText(muusicState[muusicActive], root, "已複製本段"));
   root.querySelector("[data-copy-all]").addEventListener("click", () => copyText(buildAllText(), root, "已複製全部"));
   root.querySelector("[data-fill-focused]").addEventListener("click", () => fillFocused(root));
-  root.querySelector("[data-open-web]").addEventListener("click", () => window.open(MOTIFLAB_WEB_URL, "_blank", "noopener"));
+  root.querySelector("[data-open-web]").addEventListener("click", () => window.open(MUUSIC_WEB_URL, "_blank", "noopener"));
   root.querySelector("[data-import]").addEventListener("click", () => importData(root));
   root.querySelector("[data-reset]").addEventListener("click", async () => {
-    motiflabState = { ...MOTIFLAB_DEFAULT };
-    motiflabMeta = { ...MOTIFLAB_EMPTY_META };
-    await persistMotifLab();
-    updateMotifLabUI(root);
+    muusicState = { ...MUUSIC_DEFAULT };
+    muusicMeta = { ...MUUSIC_EMPTY_META };
+    await persistMuUsic();
+    updateMuUsicUI(root);
     showToast(root, "已重置");
   });
 }
 
-function updateMotifLabUI(root) {
-  root.querySelectorAll("[data-tab]").forEach((button) => button.classList.toggle("active", button.dataset.tab === motiflabActive));
-  const label = MOTIFLAB_TABS.find(([id]) => id === motiflabActive)?.[1] || "段落";
-  const imported = motiflabMeta.exportedAt || Object.values(motiflabState).some((text) => !/^.+尚未/.test(text));
+function updateMuUsicUI(root) {
+  root.querySelectorAll("[data-tab]").forEach((button) => button.classList.toggle("active", button.dataset.tab === muusicActive));
+  const label = MUUSIC_TABS.find(([id]) => id === muusicActive)?.[1] || "段落";
+  const imported = muusicMeta.exportedAt || Object.values(muusicState).some((text) => !/^.+尚未/.test(text));
   root.classList.toggle("has-import", Boolean(imported));
   root.querySelector("[data-save-source]").textContent = imported
-    ? `讀取：${motiflabMeta.saveName || "未命名存檔"}${motiflabMeta.exportedAt ? " · " + formatTime(motiflabMeta.exportedAt) : ""}`
-    : "請先讀取 MotifLab 存檔";
+    ? `讀取：${muusicMeta.saveName || "未命名存檔"}${muusicMeta.exportedAt ? " · " + formatTime(muusicMeta.exportedAt) : ""}`
+    : "請先讀取 MuUsic 存檔";
   root.querySelector("[data-current-label]").textContent = `${label}系統結論詞`;
-  root.querySelector("[data-current-text]").value = motiflabState[motiflabActive] || "";
+  root.querySelector("[data-current-text]").value = muusicState[muusicActive] || "";
 }
 
 function saveCurrentText(root) {
-  motiflabState[motiflabActive] = root.querySelector("[data-current-text]").value;
-  persistMotifLab();
+  muusicState[muusicActive] = root.querySelector("[data-current-text]").value;
+  persistMuUsic();
 }
 
-async function persistMotifLab() {
-  await chrome.storage.local.set({ motiflabConclusions: motiflabState, motiflabMeta });
+async function persistMuUsic() {
+  await chrome.storage.local.set({ muusicConclusions: muusicState, muusicMeta });
 }
 
 function buildAllText() {
-  return MOTIFLAB_TABS.map(([id, label, group]) => `【${group} / ${label}】\n${motiflabState[id] || ""}`).join("\n\n");
+  return MUUSIC_TABS.map(([id, label, group]) => `【${group} / ${label}】\n${muusicState[id] || ""}`).join("\n\n");
 }
 
 async function copyText(text, root, message) {
@@ -140,7 +140,7 @@ async function copyText(text, root, message) {
 
 function fillFocused(root) {
   const active = document.activeElement;
-  const text = motiflabState[motiflabActive] || "";
+  const text = muusicState[muusicActive] || "";
   if (!active || !("value" in active)) {
     copyText(text, root, "未找到輸入框，已改為複製");
     return;
@@ -156,11 +156,11 @@ async function importData(root) {
   try {
     const parsed = JSON.parse(raw);
     const systems = parsed.systems || parsed;
-    motiflabState = { ...MOTIFLAB_DEFAULT, ...systems };
-    motiflabMeta = { ...MOTIFLAB_EMPTY_META, ...(parsed.meta || {}) };
-    await persistMotifLab();
-    updateMotifLabUI(root);
-    showToast(root, `已讀取：${motiflabMeta.saveName || "存檔"}`);
+    muusicState = { ...MUUSIC_DEFAULT, ...systems };
+    muusicMeta = { ...MUUSIC_EMPTY_META, ...(parsed.meta || {}) };
+    await persistMuUsic();
+    updateMuUsicUI(root);
+    showToast(root, `已讀取：${muusicMeta.saveName || "存檔"}`);
   } catch (error) {
     showToast(root, "JSON 格式不對");
   }
