@@ -955,7 +955,7 @@ function getProviderTarget() {
   return $("#providerName")?.value || "Suno";
 }
 
-function openTargetProvider() {
+async function openTargetProvider() {
   const provider = getProviderTarget();
   const url = PROVIDER_LINKS[provider];
   if (!url) {
@@ -963,8 +963,40 @@ function openTargetProvider() {
     toast("提示詞已準備好，可貼到你選的 AI 音樂工具。");
     return;
   }
+  if (provider === "Suno") {
+    const data = buildPluginData();
+    const handoffUrl = buildSunoHandoffUrl(url, data);
+    if (handoffUrl) {
+      window.open(handoffUrl, "_blank", "noopener");
+      toast("已打開 Suno，並把目前存檔交給右下角 M 插件。");
+      return;
+    }
+    await copyPluginData();
+    window.open(url, "_blank", "noopener");
+    toast("存檔資料較長，已複製插件資料；到 Suno 的 M 面板貼上匯入。");
+    return;
+  }
   window.open(url, "_blank", "noopener");
-  toast(provider === "Suno" ? "已打開 Suno。右下角 M 插件可同步查看系統筆記。" : `已打開 ${provider}。`);
+  toast(`已打開 ${provider}。`);
+}
+
+function buildSunoHandoffUrl(baseUrl, data) {
+  try {
+    const token = encodeBase64Url(JSON.stringify(data));
+    if (token.length > 48000) return "";
+    return `${baseUrl.replace(/#.*$/, "")}#muusic=${token}`;
+  } catch (error) {
+    return "";
+  }
+}
+
+function encodeBase64Url(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 function returnToPrompt() {
@@ -2586,7 +2618,8 @@ function buildWorkspaceSnapshot(options = {}) {
     lyricsStep: state.lyricsStep,
     lyricsDone: state.lyricsDone,
     promptStep: state.promptStep,
-    promptDone: state.promptDone
+    promptDone: state.promptDone,
+    promptOutput: $("#promptOutput")?.value || ""
   };
 }
 
@@ -4565,22 +4598,60 @@ async function copyPrompt() {
 }
 
 async function copyPluginData() {
-  const data = buildPluginData();
+  const data = buildPluginExportBundle();
   const text = JSON.stringify(data, null, 2);
   try {
     await navigator.clipboard.writeText(text);
-    toast("插件資料已複製，可貼到 Suno 面板匯入");
+    toast("插件存檔資料已複製，可貼到 Suno 面板匯入");
   } catch (error) {
     $("#promptOutput").value = text;
     $("#promptOutput").select();
     document.execCommand("copy");
-    toast("插件資料已放入右側文字框");
+    toast("插件存檔資料已放入右側文字框");
   }
+}
+
+function buildPluginExportBundle() {
+  const active = buildPluginData();
+  const records = collectPluginSaveRecords(active);
+  return {
+    meta: {
+      ...active.meta,
+      bundle: true,
+      recordCount: records.length
+    },
+    activeRecordId: active.meta.recordId,
+    records,
+    systems: active.systems
+  };
+}
+
+function collectPluginSaveRecords(active) {
+  const records = [];
+  const pushRecord = (data) => {
+    if (!data?.meta?.recordId) return;
+    const existing = records.findIndex((record) => record.meta.recordId === data.meta.recordId);
+    if (existing >= 0) records[existing] = data;
+    else records.push(data);
+  };
+  pushRecord(active);
+  const auto = getAutoSnapshot();
+  if (auto?.savedAt) {
+    pushRecord(buildPluginDataFromSnapshotRecord({ id: "auto", name: auto.name || "自動存檔", savedAt: auto.savedAt, snapshot: auto }, "auto"));
+  }
+  Object.values(getSaveSlots()).forEach((slot) => {
+    pushRecord(buildPluginDataFromSnapshotRecord(slot, "manual"));
+  });
+  getSaveArchives().forEach((record) => {
+    pushRecord(buildPluginDataFromSnapshotRecord(record, "archive"));
+  });
+  return records.sort((a, b) => new Date(b.meta.exportedAt || 0) - new Date(a.meta.exportedAt || 0));
 }
 
 function buildPluginData() {
   const exportedAt = new Date().toISOString();
   const saveName = getDefaultSaveName();
+  const autoSnapshot = getAutoSnapshot();
   const melody = state.analysis
     ? [
         `旋律音：${state.analysis.notes.slice(0, 18).map((note) => note.name).join(" - ") || "未檢測"}`,
@@ -4628,15 +4699,104 @@ function buildPluginData() {
   return {
     meta: {
       app: "MuUsic",
-      version: "20260601-muusic1",
+      version: "20260602-plugin-saves1",
+      recordId: `current-${autoSnapshot?.savedAt || saveName}`,
       saveName,
       exportedAt,
-      autoSavedAt: getAutoSnapshot()?.savedAt || "",
+      source: "current",
+      autoSavedAt: autoSnapshot?.savedAt || "",
       storage: "此資料來自 MuUsic 本機存檔；插件只能讀取你匯入的 JSON。"
     },
     systems,
     ...systems
   };
+}
+
+function buildPluginDataFromSnapshotRecord(record, source) {
+  const snapshot = record.snapshot || record;
+  const fields = snapshot.fields || {};
+  const exportedAt = record.savedAt || snapshot.savedAt || new Date().toISOString();
+  const analysis = hydrateAnalysis(snapshot.analysis);
+  const selectedIds = new Set(snapshot.selectedIdeaIds || []);
+  const selectedIdeas = (snapshot.ideas || []).filter((idea) => selectedIds.has(idea.id));
+  const selectedLyricWords = snapshot.selectedLyricKeywords || [];
+  const chordLine = describeSnapshotChord(snapshot.selectedChord, analysis);
+  const drumLine = describeSnapshotDrum(snapshot.selectedDrum);
+  const systems = {
+    humming: analysis
+      ? [
+          `旋律音：${analysis.notes.slice(0, 18).map((note) => note.name).join(" - ") || "未檢測"}`,
+          `簡譜：${buildJianpuPhrase(analysis, 18)}`,
+          `旋律記錄：${buildMelodyPhrase(analysis, 14)}`,
+          `速度：${analysis.bpm ? Math.round(analysis.bpm) : "自由"}`,
+          `調性感覺：${formatKeyLabel(analysis.key) || "未判斷"}`
+        ].join("\n")
+      : "旋律：尚未分析",
+    inspiration: [
+      `情緒：${selectedIdeas.flatMap((idea) => idea.moods || []).join(" / ") || getSelectedEmotionLabels(new Set(snapshot.selectedMoods || [])).join(" / ")}`,
+      `靈感原文：${selectedIdeas.map((idea) => idea.text).join(" ｜ ") || "尚未填寫"}`,
+      `歌詞頁選中關鍵詞：${selectedLyricWords.join("、") || "尚未選詞"}`
+    ].join("\n"),
+    lyrics: [
+      `主題：${fields.themeInput || snapshot.name || record.name || "尚未填寫"}`,
+      `語言：${fields.targetLang || FIELD_DEFAULTS.targetLang}`,
+      `發音口味：${fields.dialectInput || FIELD_DEFAULTS.dialectInput}`,
+      `情緒：${getSelectedEmotionLabels(new Set(snapshot.lyricMoods || [])).join(" / ")}`,
+      `視角：${fields.narratorInput || "未選擇"}`,
+      `口吻：${getChoiceLabel(CHOICES.lyricStyle, fields.lyricStyle || "") || "未選擇"}`,
+      `段落：${getChoiceLabel(CHOICES.songStructure, fields.songStructure || "") || "未選擇"}`,
+      `草稿：${fields.lyricsDraft || "尚未生成"}`
+    ].join("\n"),
+    arrangement: [
+      chordLine,
+      drumLine,
+      `推薦依據：${getSelectedEmotionLabels(new Set([...(snapshot.lyricMoods || []), ...(snapshot.selectedMoods || [])])).join(" / ")}`
+    ].join("\n"),
+    prompt: snapshot.promptOutput || fields.promptOutput || ""
+  };
+  return {
+    meta: {
+      app: "MuUsic",
+      version: "20260602-plugin-saves1",
+      recordId: `${source}-${record.id || snapshot.id || exportedAt}`,
+      saveName: record.name || snapshot.name || getDefaultSaveName(fields),
+      exportedAt,
+      source,
+      autoSavedAt: snapshot.savedAt || "",
+      storage: "此資料來自 MuUsic 本機存檔；插件只能讀取你匯入的 JSON。"
+    },
+    systems,
+    ...systems
+  };
+}
+
+function describeSnapshotChord(choice, analysis) {
+  if (!choice) return "和弦：尚未選擇";
+  if (choice.empty || choice.id === EMPTY_CHORD.id) return "和弦：已選空";
+  const preset = choice.id === "melody-fit"
+    ? getMelodyChordPresetForAnalysis(analysis)
+    : CHORD_PRESETS.find((item) => item.id === choice.id);
+  if (!preset) return "和弦：已選擇但預設資料未找到";
+  return `和弦：${preset.title}，${(preset.chords || []).join(" - ") || "依旋律生成"}\n和弦氣質：${preset.style || "未填寫"}`;
+}
+
+function describeSnapshotDrum(choice) {
+  if (!choice) return "鼓點：尚未選擇";
+  if (choice.empty || choice.id === EMPTY_DRUM.id) return "鼓點：已選空";
+  const preset = DRUM_PRESETS.find((item) => item.id === choice.id);
+  if (!preset) return "鼓點：已選擇但預設資料未找到";
+  return `鼓點：${preset.title}，${preset.style}`;
+}
+
+function getMelodyChordPresetForAnalysis(analysis) {
+  if (!analysis?.notes?.length) return null;
+  const original = state.analysis;
+  try {
+    state.analysis = analysis;
+    return getMelodyChordPreset();
+  } finally {
+    state.analysis = original;
+  }
 }
 
 function updateProgress() {

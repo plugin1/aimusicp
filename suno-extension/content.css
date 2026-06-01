@@ -75,6 +75,86 @@
   font-weight: 900;
 }
 
+.muusic-picker {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid rgba(17, 17, 17, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.muusic-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.muusic-picker label {
+  color: #6f6f6f;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.muusic-link {
+  border: 0;
+  background: transparent;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: underline;
+}
+
+.muusic-record-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(118px, 1fr);
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.muusic-record-list p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #6f6f6f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.muusic-record {
+  min-height: 52px;
+  border: 1px solid rgba(17, 17, 17, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #171717;
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  text-align: left;
+  padding: 8px 10px;
+}
+
+.muusic-record strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.muusic-record small {
+  color: #6f6f6f;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.muusic-record.active {
+  border-color: #918ee8;
+  background: color-mix(in srgb, #918ee8 18%, #ffffff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, #918ee8 16%, transparent);
+}
+
 .muusic-tabs {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
