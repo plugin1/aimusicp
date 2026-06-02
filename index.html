@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MuUsic - AI 音樂創作工作台</title>
-    <link rel="stylesheet" href="styles.css?v=20260602-plugin-saves1" />
+    <link rel="stylesheet" href="styles.css?v=20260602-lyrics-arr1" />
   </head>
   <body>
     <div class="app-shell">
@@ -267,17 +267,17 @@
                 <div class="direction-columns">
                   <div class="direction-section">
                     <label>演唱視角</label>
-                    <input id="narratorInput" type="hidden" value="第一人稱，像把心事直接唱給某個人" />
+                    <input id="narratorInput" type="hidden" value="" />
                     <div class="choice-grid" id="narratorChoices"></div>
                   </div>
                   <div class="direction-section">
                     <label>歌詞口吻</label>
-                    <input id="lyricStyle" type="hidden" value="口語、親密、克制" />
+                    <input id="lyricStyle" type="hidden" value="" />
                     <div class="choice-grid" id="lyricStyleChoices"></div>
                   </div>
                   <div class="direction-section">
                     <label>段落骨架</label>
-                    <input id="songStructure" type="hidden" value="Verse - Pre Chorus - Chorus - Verse - Chorus - Bridge - Chorus" />
+                    <input id="songStructure" type="hidden" value="" />
                     <div class="choice-grid" id="songStructureChoices"></div>
                   </div>
                 </div>
@@ -335,12 +335,33 @@
                           <span aria-hidden="true">↳</span>按骨架整理
                         </button>
                         <button id="draftLyricsButton" class="ghost-action" type="button">
-                          <span aria-hidden="true">▤</span>生成骨架
+                          <span aria-hidden="true">▤</span>生成草稿
                         </button>
-                        <button id="lyricsDoneButton" class="done-action" type="button" title="標記歌詞草稿完成" aria-label="標記歌詞草稿完成">✓</button>
                       </div>
                     </div>
-                    <textarea id="lyricsDraft" rows="18" placeholder="選擇段落骨架後，這裡會先出現主歌/副歌的寫作指引；也可以直接自己寫。"></textarea>
+                    <textarea id="lyricsDraft" rows="14" placeholder="這裡用來生成、重寫和試段落；喜歡的句子可以選中後收藏到下面。"></textarea>
+                  </div>
+                  <div class="lyrics-final-editor">
+                    <div class="list-head">
+                      <h3>正式歌詞</h3>
+                      <div class="action-row compact-actions">
+                        <button id="collectLyricLineButton" class="ghost-action" type="button">
+                          <span aria-hidden="true">★</span>收藏選中
+                        </button>
+                        <button id="applyDraftToFinalButton" class="ghost-action" type="button">
+                          <span aria-hidden="true">↓</span>套用草稿
+                        </button>
+                        <button id="lyricsDoneButton" class="done-action" type="button" title="標記正式歌詞完成" aria-label="標記正式歌詞完成">✓</button>
+                      </div>
+                    </div>
+                    <textarea id="lyricsFinal" rows="10" placeholder="把確定要交給 AI 音樂工具的歌詞放這裡。可以自己改，也可以從草稿套用。"></textarea>
+                    <div class="lyric-snippet-box">
+                      <div class="field-head">
+                        <h3>收藏句子</h3>
+                        <span>保留生成時覺得好的片段</span>
+                      </div>
+                      <div id="lyricSnippetList" class="lyric-snippet-list"></div>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -380,10 +401,12 @@
             <div class="arrangement-grid page-stack">
               <div class="arrangement-column chord-column">
                 <h3>和弦組合 <span class="tip" data-tip="幾個和弦輪流出現，形成歌曲的情緒底色。">?</span></h3>
+                <div class="arrangement-special-row" id="chordSpecials"></div>
                 <div class="card-grid" id="chordCards"></div>
               </div>
               <div class="arrangement-column drum-column">
                 <h3>鼓點節奏 <span class="tip" data-tip="鼓的重拍與小節奏，決定身體想不想跟著動。">?</span></h3>
+                <div class="arrangement-special-row" id="drumSpecials"></div>
                 <div class="card-grid" id="drumCards"></div>
               </div>
             </div>
@@ -456,6 +479,6 @@
     <div class="guide-arrow-layer" id="guideArrowLayer"></div>
     <button class="floating-jump" id="floatingJumpButton" type="button" hidden>下一頁</button>
     <button class="floating-return" id="returnPromptButton" type="button" hidden>返回提示詞</button>
-    <script src="app.js?v=20260601-guidefix1"></script>
+    <script src="app.js?v=20260602-lyrics-arr1"></script>
   </body>
 </html>

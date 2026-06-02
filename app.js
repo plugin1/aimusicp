@@ -29,16 +29,17 @@ const MANUAL_SAVE_SLOTS = ["1", "2"];
 const FIELD_DEFAULTS = {
   projectTitle: "未命名歌曲",
   targetLang: "中文",
-  lyricStyle: "口語、親密、克制",
-  songStructure: "Verse - Pre Chorus - Chorus - Verse - Chorus - Bridge - Chorus",
+  lyricStyle: "",
+  songStructure: "",
   themeInput: "",
-  narratorInput: "第一人稱，像把心事直接唱給某個人",
+  narratorInput: "",
   rhymeInput: "",
   negativePrompt: "低清晰度人聲、雜訊、突兀轉調、過度混響、過多樂器",
   providerMode: "manual",
   providerName: "Suno",
   promptFormat: "professional",
   lyricsDraft: "",
+  lyricsFinal: "",
   dialectInput: "國語發音",
   notationInput: ""
 };
@@ -506,6 +507,8 @@ const state = {
   arrangementStep: "top",
   arrangementAuditioned: false,
   lyricRecommendations: { rhymes: [], images: [], synonyms: [] },
+  lyricSnippets: [],
+  lyricDraftVersion: 0,
   isArrangementLooping: false,
   audioNodes: [],
   audioTimers: []
@@ -560,6 +563,7 @@ function init() {
   renderDrumCards();
   renderIdeas();
   renderKeywords();
+  renderLyricSnippets();
   renderRestoredAudioState();
   recommendLyrics();
   updatePrompt();
@@ -613,6 +617,8 @@ function bindEvents() {
   $("#loopComboButton").addEventListener("click", toggleArrangementLoop);
   $("#stopAudioButton").addEventListener("click", stopScheduledAudio);
   $("#lyricsDoneButton").addEventListener("click", toggleLyricsDone);
+  $("#collectLyricLineButton").addEventListener("click", collectSelectedLyricDraft);
+  $("#applyDraftToFinalButton").addEventListener("click", applyDraftToFinalLyrics);
   $("#promptDoneButton").addEventListener("click", togglePromptDone);
   $("#generatePromptButton").addEventListener("click", updatePrompt);
   $("#copyPromptButton").addEventListener("click", copyPrompt);
@@ -622,13 +628,13 @@ function bindEvents() {
   $("#guidePanel")?.addEventListener("click", handleGuidePanelAction);
   $("#guideArrowLayer")?.addEventListener("click", handleGuideArrowAction);
 
-  ["projectTitle", "targetLang", "lyricStyle", "songStructure", "themeInput", "narratorInput", "rhymeInput", "negativePrompt", "providerMode", "providerName", "promptFormat", "lyricsDraft", "dialectInput"].forEach((id) => {
+  ["projectTitle", "targetLang", "lyricStyle", "songStructure", "themeInput", "narratorInput", "rhymeInput", "negativePrompt", "providerMode", "providerName", "promptFormat", "lyricsDraft", "lyricsFinal", "dialectInput"].forEach((id) => {
     const element = document.getElementById(id);
     element.addEventListener("input", () => {
       if (["targetLang", "rhymeInput", "themeInput", "narratorInput", "lyricStyle", "songStructure", "dialectInput"].includes(id)) recommendLyrics();
       if (id === "songStructure") maybeInsertStructureGuide();
-      if (id === "lyricsDraft") recommendLyrics();
-      if (id === "lyricsDraft") state.lyricsDone = false;
+      if (["lyricsDraft", "lyricsFinal"].includes(id)) recommendLyrics();
+      if (["lyricsDraft", "lyricsFinal"].includes(id)) state.lyricsDone = false;
       updatePrompt();
       updateCompletionButtons();
       updateProgress();
@@ -768,8 +774,9 @@ function getCurrentGuideStep(scope) {
     if (!state.selectedLyricKeywords.size) return { id: "lyrics-keywords", text: "只勾真正要寫進歌裡的關鍵詞。", target: "#selectedKeywordShelf" };
     if (!state.lyricMoods.size) return { id: "lyrics-mood", text: "選歌詞情緒，背景和推薦詞會一起變。", target: "#lyricMoodPicker" };
     if (!$("#themeInput")?.value.trim()) return { id: "lyrics-theme", text: "補一個核心主題，或沿用靈感推導。", target: "#themeInput" };
-    if (!$("#lyricsDraft")?.value.trim()) return { id: "lyrics-draft", text: "可以生成骨架，也可以直接自己寫。", target: "#lyricsDraft" };
-    if (!state.lyricsDone) return { id: "lyrics-done", text: "草稿確認後按 ✓，下一頁才進提示詞。", target: "#lyricsDoneButton" };
+    if (!$("#lyricsDraft")?.value.trim()) return { id: "lyrics-draft", text: "先生成一版草稿，喜歡的句子再往下收。", target: "#lyricsDraft" };
+    if (!$("#lyricsFinal")?.value.trim()) return { id: "lyrics-final", text: "把確定要用的歌詞放進正式歌詞框。", target: "#lyricsFinal" };
+    if (!state.lyricsDone) return { id: "lyrics-done", text: "正式歌詞確認後按 ✓，下一頁才進提示詞。", target: "#lyricsDoneButton" };
     return { id: "lyrics-next", text: "歌詞已標記完成，下一頁進提示詞。", target: "#floatingJumpButton" };
   }
   if (scope === "prompt") {
@@ -1168,12 +1175,16 @@ function updateArrangementControls() {
 }
 
 function toggleLyricsDone() {
+  if (!state.lyricsDone && !$("#lyricsFinal")?.value.trim()) {
+    toast("先把確定要用的歌詞放到正式歌詞框");
+    return;
+  }
   state.lyricsDone = !state.lyricsDone;
   updateCompletionButtons();
   updateFloatingJump();
   renderGuide();
   queueWorkspaceAutosave();
-  toast(state.lyricsDone ? "歌詞草稿已標記完成" : "歌詞草稿已取消完成");
+  toast(state.lyricsDone ? "正式歌詞已標記完成" : "正式歌詞已取消完成");
 }
 
 function togglePromptDone() {
@@ -1189,7 +1200,7 @@ function updateCompletionButtons() {
   const lyricsButton = $("#lyricsDoneButton");
   if (lyricsButton) {
     lyricsButton.classList.toggle("active", state.lyricsDone);
-    lyricsButton.title = state.lyricsDone ? "歌詞草稿已完成，下一頁會前往提示詞" : "標記歌詞草稿完成";
+    lyricsButton.title = state.lyricsDone ? "正式歌詞已完成，下一頁會前往提示詞" : "標記正式歌詞完成";
   }
   const promptButton = $("#promptDoneButton");
   if (promptButton) {
@@ -2599,6 +2610,7 @@ function buildWorkspaceSnapshot(options = {}) {
     selectedIdeaIds: [...state.selectedIdeaIds],
     selectedLyricKeywords: [...state.selectedLyricKeywords],
     selectedReferenceWords: [...state.selectedReferenceWords],
+    lyricSnippets: [...state.lyricSnippets],
     deletedKeywords: [...state.deletedKeywords],
     selectedMoods: [...state.selectedMoods],
     lyricMoods: [...state.lyricMoods],
@@ -2690,6 +2702,7 @@ function applyWorkspaceSnapshot(snapshot, { silent = false } = {}) {
   state.selectedIdeaIds = new Set((saveSnapshot.selectedIdeaIds || []).filter((id) => state.ideas.some((idea) => idea.id === id && isIdeaReviewed(idea))));
   state.selectedLyricKeywords = new Set(saveSnapshot.selectedLyricKeywords || []);
   state.selectedReferenceWords = new Set(saveSnapshot.selectedReferenceWords || []);
+  state.lyricSnippets = Array.isArray(saveSnapshot.lyricSnippets) ? saveSnapshot.lyricSnippets : [];
   state.deletedKeywords = new Set(saveSnapshot.deletedKeywords || []);
   state.selectedMoods = new Set(saveSnapshot.selectedMoods || []);
   state.lyricMoods = new Set(saveSnapshot.lyricMoods || []);
@@ -2770,7 +2783,7 @@ function restoreChordChoice(choice) {
 function restoreDrumChoice(choice) {
   if (!choice) return null;
   if (choice.empty || choice.id === EMPTY_DRUM.id) return EMPTY_DRUM;
-  return DRUM_PRESETS.find((preset) => preset.id === choice.id) || null;
+  return findDrumPreset(choice.id) || null;
 }
 
 function refreshWorkspaceUI() {
@@ -2786,6 +2799,7 @@ function refreshWorkspaceUI() {
   renderDrumCards();
   renderIdeas();
   renderKeywords();
+  renderLyricSnippets();
   recommendLyrics();
   updatePrompt();
   updateProgress();
@@ -2905,7 +2919,7 @@ function renderSaveBadges(snapshot) {
     snapshot?.selectedIdeaIds?.length ? `${snapshot.selectedIdeaIds.length} 靈感` : "",
     chord ? "和弦" : "",
     drum ? "鼓點" : "",
-    snapshot?.fields?.lyricsDraft?.trim() ? "歌詞" : ""
+    (snapshot?.fields?.lyricsFinal?.trim() || snapshot?.fields?.lyricsDraft?.trim()) ? "歌詞" : ""
   ].filter(Boolean);
   if (!badges.length) return `<div class="save-badges"><span>空白</span></div>`;
   return `<div class="save-badges">${badges.slice(0, 4).map((badge) => `<span>${escapeHtml(badge)}</span>`).join("")}</div>`;
@@ -3223,7 +3237,7 @@ function recommendLyrics() {
   const emotionLabels = getSelectedEmotionLabels(state.lyricMoods);
   const narrator = $("#narratorInput").value;
   const style = $("#lyricStyle").value;
-  const draft = $("#lyricsDraft").value || "";
+  const draft = `${$("#lyricsDraft").value || ""}\n${$("#lyricsFinal")?.value || ""}`;
   const ideaKeywords = new Set(getLyricsIdeaKeywords().map(normalizeLyricWord));
   const selectedKeywords = new Set(getSelectedIdeaKeywordWords().map(normalizeLyricWord));
   const rhymes = uniqueReferenceItems([
@@ -3490,6 +3504,93 @@ function renderSelectedKeywordDisplays() {
   });
 }
 
+function collectSelectedLyricDraft() {
+  const draft = $("#lyricsDraft");
+  const selected = draft.value.slice(draft.selectionStart, draft.selectionEnd).trim();
+  if (!selected) {
+    toast("先在歌詞草稿裡選中想收藏的句子");
+    return;
+  }
+  addLyricSnippet(selected);
+  appendToFinalLyrics(selected);
+  state.lyricsDone = false;
+  renderLyricSnippets();
+  updateCompletionButtons();
+  updatePrompt();
+  queueWorkspaceAutosave();
+  toast("已收藏並放入正式歌詞");
+}
+
+function addLyricSnippet(text) {
+  const clean = cleanLyricText(text);
+  if (!clean) return;
+  state.lyricSnippets = [clean, ...state.lyricSnippets.filter((item) => item !== clean)].slice(0, 18);
+}
+
+function appendToFinalLyrics(text) {
+  const target = $("#lyricsFinal");
+  const clean = cleanLyricText(text);
+  if (!target || !clean) return;
+  const current = target.value.trim();
+  if (current.includes(clean)) return;
+  target.value = current ? `${current}\n${clean}` : clean;
+}
+
+function applyDraftToFinalLyrics() {
+  const clean = cleanLyricText($("#lyricsDraft").value);
+  if (!clean) {
+    toast("草稿裡還沒有可套用的歌詞");
+    return;
+  }
+  $("#lyricsFinal").value = clean;
+  state.lyricsDone = false;
+  recommendLyrics();
+  updateCompletionButtons();
+  updatePrompt();
+  queueWorkspaceAutosave();
+  toast("已把草稿套用到正式歌詞");
+}
+
+function renderLyricSnippets() {
+  const target = $("#lyricSnippetList");
+  if (!target) return;
+  target.innerHTML = state.lyricSnippets.length
+    ? state.lyricSnippets.map((line, index) => `<article class="lyric-snippet">
+        <span>${escapeHtml(line)}</span>
+        <div>
+          <button type="button" data-insert-lyric-snippet="${index}">放入</button>
+          <button type="button" data-remove-lyric-snippet="${index}">×</button>
+        </div>
+      </article>`).join("")
+    : `<p>選中草稿裡喜歡的句子，再按「收藏選中」。</p>`;
+  target.querySelectorAll("[data-insert-lyric-snippet]").forEach((button) => {
+    button.addEventListener("click", () => {
+      appendToFinalLyrics(state.lyricSnippets[Number(button.dataset.insertLyricSnippet)] || "");
+      state.lyricsDone = false;
+      updateCompletionButtons();
+      updatePrompt();
+      queueWorkspaceAutosave();
+    });
+  });
+  target.querySelectorAll("[data-remove-lyric-snippet]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.lyricSnippets.splice(Number(button.dataset.removeLyricSnippet), 1);
+      renderLyricSnippets();
+      queueWorkspaceAutosave();
+    });
+  });
+}
+
+function cleanLyricText(text) {
+  return String(text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith(STRUCTURE_GUIDE_MARKER) && !/^\[(寫作方向|節奏參考)\]/.test(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function getChoiceLabel(choices, value) {
   return choices.find((choice) => choice.value === value)?.label || value;
 }
@@ -3681,7 +3782,7 @@ function structureDraftLyrics() {
 }
 
 function organizeExistingLyrics(text) {
-  const sections = parseStructureSections($("#songStructure").value);
+  const sections = parseStructureSections($("#songStructure").value || "Verse - Pre Chorus - Chorus - Verse - Chorus - Bridge - Chorus");
   const cleanLines = text
     .split(/\n+/)
     .map((line) => line.trim())
@@ -3707,26 +3808,114 @@ function organizeExistingLyrics(text) {
 
 function draftLyrics() {
   recommendLyrics();
+  state.lyricDraftVersion += 1;
   const lang = $("#targetLang").value;
   const theme = $("#themeInput").value.trim() || "尚未命名的心事";
   const words = getSelectedLyricWords({ includeReferences: false }).slice(0, 8);
   const selectedReference = getSelectedReferenceWordList();
-  const [imageA, imageB, imageC] = [...selectedReference, ...state.lyricRecommendations.images];
-  const [rhymeA, rhymeB] = [...selectedReference, ...state.lyricRecommendations.rhymes];
+  const images = [...selectedReference, ...state.lyricRecommendations.images, "凌晨的街口", "半亮的窗", "沒說出口的訊息"];
+  const rhymes = [...selectedReference, ...state.lyricRecommendations.rhymes, "光", "海", "來", "在"];
   const emotions = getSelectedEmotionLabels(state.lyricMoods).join(" / ");
   const narrator = $("#narratorInput").value;
   const guide = state.analysis?.notes?.length ? buildSyllableAdvice(state.analysis) : "每句 7-11 字，副歌保留重複 hook。";
-  const templates = {
-    "中文": `[主歌]\n我在${imageA || "街角"}想起${theme}\n${imageB || "雨聲"}把沉默慢慢打開\n${words[0] || "回憶"}還留在口袋\n\n[副歌前]\n差一點說出的${rhymeA || "告白"}\n繞過人群又回來\n\n[副歌]\n如果你也聽見${rhymeB || "窗外"}\n就讓我把夜色唱成海\n核心句: ${words[1] || "別離"} / ${words[2] || "等待"} / ${theme}`,
-    "English": `[Verse]\nI kept ${theme} under a ${imageA || "streetlight"}\nYour name was static in the rain\n${words[0] || "memory"} on my tongue tonight\n\n[Pre Chorus]\nAlmost said it, almost stayed\nEvery silence finds a way\n\n[Chorus]\nMeet me where the ${rhymeA || "midnight"} bends\nTurn the hurt into a ${rhymeB || "soft light"} again\nHook: ${words[1] || "runaway"} / ${words[2] || "afterglow"} / ${theme}`,
-    "日本語": `[Verse]\n${imageA || "終電のホーム"}で ${theme} を抱いた\nほどけた声が夜に溶けてく\n${words[0] || "記憶"}だけがまだ光る\n\n[Pre Chorus]\n言えないままの${rhymeA || "願い"}\n胸の奥で揺れている\n\n[Chorus]\n${rhymeB || "未来"}まで届くなら\nこの雨を歌に変えるから\nHook: ${words[1] || "夜"} / ${words[2] || "声"} / ${theme}`,
-    "한국어": `[Verse]\n${imageA || "새벽 편의점"} 앞에서 ${theme}을 붙잡아\n젖은 마음이 조용히 흔들려\n${words[0] || "기억"}만 아직 빛나\n\n[Pre Chorus]\n말하지 못한 ${rhymeA || "바다"}\n내 안에서 자꾸 번져가\n\n[Chorus]\n${rhymeB || "하나"}만 남겨줘\n이 밤을 노래로 바꿀 수 있게\nHook: ${words[1] || "밤"} / ${words[2] || "맘"} / ${theme}`
-  };
-  $("#lyricsDraft").value = `${templates[lang] || templates["中文"]}\n\n[寫作方向]\n情緒：${emotions}\n視角：${narrator}\n跨語參考：${lang}\n選中詞：${words.join(" / ") || "尚未選詞"}\n\n[節奏參考]\n${guide}`;
+  const sections = parseStructureSections($("#songStructure").value);
+  const context = { theme, words, images, rhymes, emotions, narrator, lang, guide, version: state.lyricDraftVersion };
+  const counts = {};
+  const draft = sections.map((section) => {
+    const label = sectionLabel(section);
+    counts[label] = (counts[label] || 0) + 1;
+    const suffix = counts[label] > 1 ? ` 重複 ${counts[label]}` : "";
+    return `[${label}${suffix}]\n${buildSectionLyricLines(section, context).join("\n")}`;
+  }).join("\n\n-----\n\n");
+  $("#lyricsDraft").value = draft;
   state.lyricsDone = false;
+  renderLyricSnippets();
   updateCompletionButtons();
   updatePrompt();
   updateProgress();
+  toast(`已生成第 ${state.lyricDraftVersion} 版草稿，可選中好句收藏`);
+}
+
+function buildSectionLyricLines(section, context) {
+  if (/pre/i.test(section)) return buildPreChorusLines(context);
+  if (/chorus|hook/i.test(section)) return buildChorusLines(context);
+  if (/bridge/i.test(section)) return buildBridgeLines(context);
+  if (/intro/i.test(section)) return buildIntroOutroLines(context, "intro");
+  if (/outro/i.test(section)) return buildIntroOutroLines(context, "outro");
+  if (/drop/i.test(section)) return buildDropLines(context);
+  return buildVerseLines(context);
+}
+
+function rotatePick(items, index, fallback = "") {
+  const clean = items.filter(Boolean);
+  if (!clean.length) return fallback;
+  return clean[index % clean.length];
+}
+
+function buildVerseLines(ctx) {
+  const offset = ctx.version % 5;
+  const wordA = rotatePick(ctx.words, offset, "回憶");
+  const wordB = rotatePick(ctx.words, offset + 1, "沉默");
+  const imageA = rotatePick(ctx.images, offset, "凌晨的街口");
+  const imageB = rotatePick(ctx.images, offset + 1, "半亮的窗");
+  return [
+    `我在${imageA}想起${ctx.theme}`,
+    `${wordA}貼著掌心，像還沒退掉的光`,
+    `路過${imageB}，人群把夜色慢慢推開`,
+    `${wordB}沒有回答，只在胸口輕輕發燙`
+  ];
+}
+
+function buildPreChorusLines(ctx) {
+  const offset = ctx.version % 4;
+  const rhyme = rotatePick(ctx.rhymes, offset, "來");
+  const word = rotatePick(ctx.words, offset + 2, "等待");
+  return [
+    `差一點就把${word}說成${rhyme}`,
+    `差一點就承認我還在原地徘徊`
+  ];
+}
+
+function buildChorusLines(ctx) {
+  const offset = ctx.version % 6;
+  const rhymeA = rotatePick(ctx.rhymes, offset, "海");
+  const rhymeB = rotatePick(ctx.rhymes, offset + 1, "來");
+  const wordA = rotatePick(ctx.words, offset + 1, "別離");
+  const wordB = rotatePick(ctx.words, offset + 2, "等待");
+  return [
+    `如果你也聽見我把${wordA}唱成${rhymeA}`,
+    `就別讓這一夜只剩風替我們回來`,
+    `我把${wordB}放進副歌，一遍一遍打開`,
+    `重複句：${ctx.theme}，還在心裡亮起來`
+  ];
+}
+
+function buildBridgeLines(ctx) {
+  const offset = ctx.version % 5;
+  const image = rotatePick(ctx.images, offset + 2, "轉角後的光");
+  const word = rotatePick(ctx.words, offset + 3, "答案");
+  return [
+    `後來我走到${image}背面`,
+    `才懂${word}不是非要誰給`,
+    `把沒完成的話留一半，讓最後一次副歌接回來`
+  ];
+}
+
+function buildIntroOutroLines(ctx, type) {
+  const image = rotatePick(ctx.images, ctx.version, "夜色");
+  const word = rotatePick(ctx.words, ctx.version, ctx.theme);
+  if (type === "intro") return [`${image}裡，有人輕輕哼著${word}`];
+  return [`讓${word}慢慢退場，讓${image}替我收尾`];
+}
+
+function buildDropLines(ctx) {
+  const wordA = rotatePick(ctx.words, ctx.version, "心跳");
+  const wordB = rotatePick(ctx.words, ctx.version + 1, "夜色");
+  return [
+    `${wordA}，${wordA}`,
+    `${wordB}落下來`,
+    `留白，呼吸，再重來`
+  ];
 }
 
 function getMelodyChordPreset() {
@@ -3771,6 +3960,46 @@ function getMelodyChordPreset() {
     bpm: analysis.bpm ? Math.round(analysis.bpm) : 96,
     chords: chords.map((template) => formatChordLabel(rootPc, template)),
     notes: chords.map((template) => buildChordMidiNotes(rootPc, template)),
+    generated: true
+  };
+}
+
+function getMelodyDrumPreset() {
+  const analysis = state.analysis;
+  if (!analysis?.notes?.length) return null;
+  const bpm = Math.max(62, Math.min(148, Math.round(analysis.bpm || 92)));
+  const duration = Math.max(analysis.duration || 1, 1);
+  const density = analysis.notes.length / duration;
+  const range = Math.max(...analysis.notes.map((note) => note.midi)) - Math.min(...analysis.notes.map((note) => note.midi));
+  const isMinor = /Minor/i.test(analysis.key || "");
+  let pattern;
+  let style;
+  let color;
+  if (bpm < 84 || range <= 5) {
+    pattern = ["K", "", "H", "", "", "", "H", "", "S", "", "H", "", "", "", "H", ""];
+    style = "貼著慢旋律留空，重拍少，適合讓人聲靠前";
+    color = "#8ca0c8";
+  } else if (density > 2.5 || bpm > 116) {
+    pattern = ["K", "", "H", "H", "S", "", "H", "", "K", "H", "H", "", "S", "", "H", "H"];
+    style = "按旋律密度加推進感，小節尾端更活";
+    color = "#5bafd6";
+  } else if (isMinor) {
+    pattern = ["K", "", "", "H", "", "S", "H", "", "K", "", "H", "", "", "S", "H", ""];
+    style = "暗色半拍，給悲傷或緊張旋律留出呼吸";
+    color = "#725b87";
+  } else {
+    pattern = ["K", "", "H", "", "S", "", "H", "", "K", "", "H", "K", "S", "", "H", ""];
+    style = "跟著哼唱速度做中等推進，適合先檢查整體律動";
+    color = "#d99a58";
+  }
+  return {
+    id: "melody-drum",
+    title: "旋律專屬鼓點",
+    style,
+    moodTags: [],
+    color,
+    bpm,
+    pattern,
     generated: true
   };
 }
@@ -3821,26 +4050,34 @@ function findChordPreset(id) {
   return CHORD_PRESETS.find((item) => item.id === id);
 }
 
+function findDrumPreset(id) {
+  const generated = getMelodyDrumPreset();
+  if (generated?.id === id) return generated;
+  return DRUM_PRESETS.find((item) => item.id === id);
+}
+
 function renderChordCards() {
   const recommended = getRecommendedPresetIds(CHORD_PRESETS);
   const melodyPreset = getMelodyChordPreset();
-  const chordPresets = melodyPreset ? [melodyPreset, ...CHORD_PRESETS] : CHORD_PRESETS;
   const emptySelected = state.selectedChord?.empty ? " selected" : "";
-  $("#chordCards").innerHTML = `<article class="music-card arrangement-null-card${emptySelected}" style="--preset-color: ${EMPTY_CHORD.color}">
-      <header><strong>不使用和弦</strong><small>選空</small></header>
-      <div class="empty-card-body">不指定和聲，讓 AI 按旋律和情緒自行處理。</div>
-      <footer>
-        <small>可只選鼓點</small>
-        <div class="music-actions">
-          <button class="ghost-action" type="button" data-empty-chord>${state.selectedChord?.empty ? "取消選空" : "選空"}</button>
-        </div>
-      </footer>
-    </article>` + chordPresets.map((preset) => {
+  const melodySelected = melodyPreset && !state.selectedChord?.empty && state.selectedChord?.id === melodyPreset.id ? " selected" : "";
+  $("#chordSpecials").innerHTML = `<button class="arrangement-special${emptySelected}" type="button" data-empty-chord style="--preset-color:${EMPTY_CHORD.color}">
+      <strong>${state.selectedChord?.empty ? "已選空和弦" : "不使用和弦"}</strong>
+      <small>讓 AI 自行處理和聲</small>
+    </button>
+    ${melodyPreset ? `<button class="arrangement-special generated${melodySelected}" type="button" data-select-chord="${melodyPreset.id}" style="--preset-color:${melodyPreset.color}">
+      <strong>旋律專屬和弦</strong>
+      <small>${melodyPreset.chords.join(" - ")}</small>
+    </button>
+    <button class="arrangement-special play-only" type="button" data-play-melody-chord="${melodyPreset.id}" style="--preset-color:${melodyPreset.color}">
+      <strong>♪ 旋律+和弦</strong>
+      <small>檢查是否貼合哼唱</small>
+    </button>` : ""}`;
+  $("#chordCards").innerHTML = CHORD_PRESETS.map((preset) => {
     const selected = !state.selectedChord?.empty && preset.id === state.selectedChord?.id ? " selected" : "";
-    const isRecommended = preset.generated || recommended.includes(preset.id) ? " recommended" : "";
-    const generated = preset.generated ? " generated" : "";
-    const badge = preset.generated ? "旋律專屬" : (recommended.includes(preset.id) ? (state.analysis?.notes?.length ? "旋律推薦" : "情緒推薦") : "");
-    return `<article class="music-card${selected}${isRecommended}${generated}" style="--preset-color: ${preset.color}" data-chord-id="${preset.id}">
+    const isRecommended = recommended.includes(preset.id) ? " recommended" : "";
+    const badge = recommended.includes(preset.id) ? (state.analysis?.notes?.length ? "旋律推薦" : "情緒推薦") : "";
+    return `<article class="music-card${selected}${isRecommended}" style="--preset-color: ${preset.color}" data-chord-id="${preset.id}">
       <header><strong>${preset.title}</strong><small title="歌曲速度，數字越大感覺越快。">${badge || "速度 " + preset.bpm}</small></header>
       <div class="chord-line">${preset.chords.map((chord) => `<span>${chord}</span>`).join("")}</div>
       <footer>
@@ -3848,7 +4085,6 @@ function renderChordCards() {
         <div class="music-actions">
           <button class="ghost-action" type="button" data-select-chord="${preset.id}">${selected ? "取消選用" : "選用"}</button>
           <button class="ghost-action" type="button" data-play-chord="${preset.id}"><span aria-hidden="true">▶</span>播放</button>
-          ${preset.generated ? `<button class="ghost-action" type="button" data-play-melody-chord="${preset.id}"><span aria-hidden="true">♪</span>旋律+和弦</button>` : ""}
         </div>
       </footer>
     </article>`;
@@ -3885,17 +4121,18 @@ function renderChordCards() {
 
 function renderDrumCards() {
   const recommended = getRecommendedPresetIds(DRUM_PRESETS);
+  const melodyPreset = getMelodyDrumPreset();
   const emptySelected = state.selectedDrum?.empty ? " selected" : "";
-  $("#drumCards").innerHTML = `<article class="music-card arrangement-null-card${emptySelected}" style="--preset-color: ${EMPTY_DRUM.color}">
-      <header><strong>不使用鼓點</strong><small>選空</small></header>
-      <div class="empty-card-body">不指定節拍，讓 AI 按和弦和歌詞自行處理。</div>
-      <footer>
-        <small>可只選和弦</small>
-        <div class="music-actions">
-          <button class="ghost-action" type="button" data-empty-drum>${state.selectedDrum?.empty ? "取消選空" : "選空"}</button>
-        </div>
-      </footer>
-    </article>` + DRUM_PRESETS.map((preset) => {
+  const melodySelected = melodyPreset && !state.selectedDrum?.empty && state.selectedDrum?.id === melodyPreset.id ? " selected" : "";
+  $("#drumSpecials").innerHTML = `<button class="arrangement-special${emptySelected}" type="button" data-empty-drum style="--preset-color:${EMPTY_DRUM.color}">
+      <strong>${state.selectedDrum?.empty ? "已選空鼓點" : "不使用鼓點"}</strong>
+      <small>讓 AI 自行處理節拍</small>
+    </button>
+    ${melodyPreset ? `<button class="arrangement-special generated${melodySelected}" type="button" data-select-drum="${melodyPreset.id}" style="--preset-color:${melodyPreset.color}">
+      <strong>旋律專屬鼓點</strong>
+      <small>速度 ${melodyPreset.bpm} · ${melodyPreset.style}</small>
+    </button>` : ""}`;
+  $("#drumCards").innerHTML = DRUM_PRESETS.map((preset) => {
     const selected = !state.selectedDrum?.empty && preset.id === state.selectedDrum?.id ? " selected" : "";
     const isRecommended = recommended.includes(preset.id) ? " recommended" : "";
     const badge = recommended.includes(preset.id) ? (state.analysis?.notes?.length ? "旋律推薦" : "情緒推薦") : "";
@@ -3920,7 +4157,7 @@ function renderDrumCards() {
   });
   $$("[data-select-drum]").forEach((button) => {
     button.addEventListener("click", () => {
-      const preset = DRUM_PRESETS.find((item) => item.id === button.dataset.selectDrum);
+      const preset = findDrumPreset(button.dataset.selectDrum);
       state.selectedDrum = !state.selectedDrum?.empty && state.selectedDrum?.id === preset.id ? null : preset;
       renderDrumCards();
       markArrangementChanged();
@@ -3928,7 +4165,7 @@ function renderDrumCards() {
   });
   $$("[data-play-drum]").forEach((button) => {
     button.addEventListener("click", () => {
-      const preset = DRUM_PRESETS.find((item) => item.id === button.dataset.playDrum);
+      const preset = findDrumPreset(button.dataset.playDrum);
       playDrumPreset(preset);
     });
   });
@@ -4350,7 +4587,7 @@ function renderPromptNotes() {
     ["情緒", getSelectedEmotionLabels(state.lyricMoods).join(" / ") || "尚未選擇"],
     ["語言", `${$("#targetLang").value} · ${$("#dialectInput").value}`]
   ];
-  const lyricDraft = $("#lyricsDraft").value.trim();
+  const finalLyrics = getFinalLyricsForPrompt();
   const chord = state.selectedChord;
   const drum = state.selectedDrum;
   const chordTitle = chord ? chord.title : "尚未選擇";
@@ -4418,9 +4655,9 @@ function renderPromptNotes() {
     <article class="prompt-summary-card summary-lyrics" style="--module-color:#8fb7dc">
       <h3>歌詞 <small>${escapeHtml($("#themeInput").value.trim() || inferTheme())}</small></h3>
       <div class="summary-grid-two">
-        <div class="summary-block summary-draft is-clickable" data-summary-jump="lyrics" data-summary-selector="#lyricsDraft">
-          <span>歌詞草稿</span>
-          <strong>${escapeHtml(lyricDraft || "尚未生成或撰寫歌詞")}</strong>
+        <div class="summary-block summary-draft is-clickable" data-summary-jump="lyrics" data-summary-selector="#lyricsFinal">
+          <span>正式歌詞</span>
+          <strong>${escapeHtml(finalLyrics || "尚未套用到正式歌詞")}</strong>
         </div>
         <div class="summary-block summary-settings is-clickable" data-summary-jump="lyrics" data-summary-selector="#lyricMoodPicker">
           <span>方向詞</span>
@@ -4501,7 +4738,7 @@ function buildPrompt(format) {
   const narrator = $("#narratorInput").value;
   const dialect = $("#dialectInput").value;
   const theme = $("#themeInput").value.trim() || inferTheme();
-  const lyrics = $("#lyricsDraft").value.trim();
+  const lyrics = getFinalLyricsForPrompt();
   const keywords = getSelectedLyricWords({ includeReferences: false }).slice(0, 12);
   const chordLine = hasPlayableChord()
     ? state.selectedChord.chords.join(" - ")
@@ -4548,7 +4785,7 @@ function buildPrompt(format) {
     return `${projectTitle} for ${payload.provider}: ${language}, ${dialect}, ${payload.theme}. Emotion: ${mood}. Viewpoint: ${narrator}. Style: ${style}. Structure: ${structure}. Melody: ${melody}. Chords: ${chordLine}. Drums: ${drumTitle}. Keywords: ${keywords.join(", ")}. Avoid: ${payload.negativePrompt}.`;
   }
 
-  const lyricBlock = lyrics ? `\nLyrics draft:\n${lyrics}` : "";
+  const lyricBlock = lyrics ? `\nFinal lyrics:\n${lyrics}` : "";
   return `Create a complete AI-generated song called "${projectTitle}".
 
 Core concept:
@@ -4577,6 +4814,10 @@ Arrangement:
 Constraints:
 - Avoid: ${payload.negativePrompt}
 - Preserve the emotional center and make the chorus easy to remember.${lyricBlock}`;
+}
+
+function getFinalLyricsForPrompt() {
+  return cleanLyricText($("#lyricsFinal")?.value || "");
 }
 
 function inferTheme() {
@@ -4677,7 +4918,8 @@ function buildPluginData() {
     `視角：${$("#narratorInput").value}`,
     `口吻：${getChoiceLabel(CHOICES.lyricStyle, $("#lyricStyle").value)}`,
     `段落：${getChoiceLabel(CHOICES.songStructure, $("#songStructure").value)}`,
-    `草稿：${$("#lyricsDraft").value.trim() || "尚未生成"}`
+    `正式歌詞：${getFinalLyricsForPrompt() || "尚未完成"}`,
+    `收藏句子：${state.lyricSnippets.join(" / ") || "尚未收藏"}`
   ].join("\n");
   const arrangement = [
     hasPlayableChord()
@@ -4699,7 +4941,7 @@ function buildPluginData() {
   return {
     meta: {
       app: "MuUsic",
-      version: "20260602-plugin-saves1",
+      version: "20260602-lyrics-arr1",
       recordId: `current-${autoSnapshot?.savedAt || saveName}`,
       saveName,
       exportedAt,
@@ -4721,7 +4963,7 @@ function buildPluginDataFromSnapshotRecord(record, source) {
   const selectedIdeas = (snapshot.ideas || []).filter((idea) => selectedIds.has(idea.id));
   const selectedLyricWords = snapshot.selectedLyricKeywords || [];
   const chordLine = describeSnapshotChord(snapshot.selectedChord, analysis);
-  const drumLine = describeSnapshotDrum(snapshot.selectedDrum);
+  const drumLine = describeSnapshotDrum(snapshot.selectedDrum, analysis);
   const systems = {
     humming: analysis
       ? [
@@ -4745,7 +4987,8 @@ function buildPluginDataFromSnapshotRecord(record, source) {
       `視角：${fields.narratorInput || "未選擇"}`,
       `口吻：${getChoiceLabel(CHOICES.lyricStyle, fields.lyricStyle || "") || "未選擇"}`,
       `段落：${getChoiceLabel(CHOICES.songStructure, fields.songStructure || "") || "未選擇"}`,
-      `草稿：${fields.lyricsDraft || "尚未生成"}`
+      `正式歌詞：${fields.lyricsFinal || "尚未完成"}`,
+      `收藏句子：${(snapshot.lyricSnippets || []).join(" / ") || "尚未收藏"}`
     ].join("\n"),
     arrangement: [
       chordLine,
@@ -4757,7 +5000,7 @@ function buildPluginDataFromSnapshotRecord(record, source) {
   return {
     meta: {
       app: "MuUsic",
-      version: "20260602-plugin-saves1",
+      version: "20260602-lyrics-arr1",
       recordId: `${source}-${record.id || snapshot.id || exportedAt}`,
       saveName: record.name || snapshot.name || getDefaultSaveName(fields),
       exportedAt,
@@ -4780,10 +5023,12 @@ function describeSnapshotChord(choice, analysis) {
   return `和弦：${preset.title}，${(preset.chords || []).join(" - ") || "依旋律生成"}\n和弦氣質：${preset.style || "未填寫"}`;
 }
 
-function describeSnapshotDrum(choice) {
+function describeSnapshotDrum(choice, analysis) {
   if (!choice) return "鼓點：尚未選擇";
   if (choice.empty || choice.id === EMPTY_DRUM.id) return "鼓點：已選空";
-  const preset = DRUM_PRESETS.find((item) => item.id === choice.id);
+  const preset = choice.id === "melody-drum"
+    ? getMelodyDrumPresetForAnalysis(analysis)
+    : DRUM_PRESETS.find((item) => item.id === choice.id);
   if (!preset) return "鼓點：已選擇但預設資料未找到";
   return `鼓點：${preset.title}，${preset.style}`;
 }
@@ -4799,11 +5044,22 @@ function getMelodyChordPresetForAnalysis(analysis) {
   }
 }
 
+function getMelodyDrumPresetForAnalysis(analysis) {
+  if (!analysis?.notes?.length) return null;
+  const original = state.analysis;
+  try {
+    state.analysis = analysis;
+    return getMelodyDrumPreset();
+  } finally {
+    state.analysis = original;
+  }
+}
+
 function updateProgress() {
   const pieces = [
     Boolean(state.analysis?.notes?.length),
     state.keywordMap.size > 0,
-    $("#lyricsDraft").value.trim().length > 30,
+    getFinalLyricsForPrompt().length > 30,
     hasChordChoice(),
     hasDrumChoice(),
     $("#themeInput").value.trim().length > 0
