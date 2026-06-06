@@ -509,6 +509,7 @@ const state = {
   lyricRecommendations: { rhymes: [], images: [], synonyms: [] },
   lyricSnippets: [],
   lyricDraftVersion: 0,
+  lyricDraftUndoStack: [],
   isArrangementLooping: false,
   audioNodes: [],
   audioTimers: []
@@ -564,6 +565,7 @@ function init() {
   renderIdeas();
   renderKeywords();
   renderLyricSnippets();
+  updateDraftUndoButton();
   renderRestoredAudioState();
   recommendLyrics();
   updatePrompt();
@@ -576,6 +578,7 @@ function init() {
   window.addEventListener("resize", updateFloatingJump);
   window.addEventListener("resize", queueGuideArrowRender);
   $("#floatingJumpButton").addEventListener("click", jumpToNextPanel);
+  $("#floatingAltJumpButton").addEventListener("click", jumpToAltPanel);
   $("#returnPromptButton").addEventListener("click", returnToPrompt);
   renderGuide();
 }
@@ -592,6 +595,7 @@ function bindEvents() {
     document.body.classList.remove("in-app");
     applyEmotionTheme();
     $("#floatingJumpButton").hidden = true;
+    $("#floatingAltJumpButton").hidden = true;
     $("#returnPromptButton").hidden = true;
     window.scrollTo({ top: 0, behavior: "smooth" });
     renderGuide();
@@ -610,6 +614,7 @@ function bindEvents() {
   const recommendLyricsButton = $("#recommendLyricsButton");
   if (recommendLyricsButton) recommendLyricsButton.addEventListener("click", recommendLyrics);
   $("#draftLyricsButton").addEventListener("click", draftLyrics);
+  $("#undoDraftButton").addEventListener("click", undoLyricDraftOverwrite);
   $("#structureLyricsButton").addEventListener("click", structureDraftLyrics);
   $("#globalLoopButton").addEventListener("click", toggleArrangementLoop);
   $("#playComboButton").addEventListener("click", () => playArrangementCombo({ loop: false }));
@@ -617,7 +622,7 @@ function bindEvents() {
   $("#loopComboButton").addEventListener("click", toggleArrangementLoop);
   $("#stopAudioButton").addEventListener("click", stopScheduledAudio);
   $("#lyricsDoneButton").addEventListener("click", toggleLyricsDone);
-  $("#collectLyricLineButton").addEventListener("click", collectSelectedLyricDraft);
+  $("#lyricSelectionPopover").addEventListener("click", collectSelectedLyricDraft);
   $("#applyDraftToFinalButton").addEventListener("click", applyDraftToFinalLyrics);
   $("#promptDoneButton").addEventListener("click", togglePromptDone);
   $("#generatePromptButton").addEventListener("click", updatePrompt);
@@ -635,6 +640,7 @@ function bindEvents() {
       if (id === "songStructure") maybeInsertStructureGuide();
       if (["lyricsDraft", "lyricsFinal"].includes(id)) recommendLyrics();
       if (["lyricsDraft", "lyricsFinal"].includes(id)) state.lyricsDone = false;
+      if (id === "lyricsDraft") updateLyricSelectionPopover();
       updatePrompt();
       updateCompletionButtons();
       updateProgress();
@@ -642,6 +648,12 @@ function bindEvents() {
       renderGuide();
       queueWorkspaceAutosave();
     });
+  });
+  ["select", "keyup", "mouseup", "focus"].forEach((eventName) => {
+    $("#lyricsDraft").addEventListener(eventName, updateLyricSelectionPopover);
+  });
+  $("#lyricsDraft").addEventListener("blur", () => {
+    window.setTimeout(updateLyricSelectionPopover, 120);
   });
   $("#promptOutput").addEventListener("input", () => {
     state.promptDone = false;
@@ -887,10 +899,10 @@ function getWorkflowJumpAction() {
     return { label: "回到本頁開頭", target: activePanel, arrangementStep: "top", top: true };
   }
   if (moduleId === "lyrics") {
-    const writingPanel = $("#lyrics .lyrics-writing-panel");
+    const draftBox = $("#lyricsDraft");
     if (state.lyricsDone) return { label: "下一頁 · 提示詞", module: "prompt" };
     if (state.lyricsStep !== "draft") {
-      return { label: "下一頁 · 歌詞草稿", target: writingPanel, workflowState: ["lyricsStep", "draft"] };
+      return { label: "下一頁 · 歌詞草稿", target: draftBox, workflowState: ["lyricsStep", "draft"], block: "center" };
     }
     return { label: "回到本頁開頭", target: activePanel, top: true, workflowState: ["lyricsStep", "top"] };
   }
@@ -918,6 +930,8 @@ function updateFloatingJump() {
   if (!button) return;
   if (!document.body.classList.contains("in-app")) {
     button.hidden = true;
+    const altButton = $("#floatingAltJumpButton");
+    if (altButton) altButton.hidden = true;
     return;
   }
   const action = getWorkflowJumpAction();
@@ -926,11 +940,68 @@ function updateFloatingJump() {
   button.title = action?.external && getProviderTarget() === "Suno"
     ? "會打開 Suno。Suno 頁面右下角 M 插件可以一起查看四個系統筆記。"
     : "";
+  updateFloatingAltJump();
 }
 
 function jumpToNextPanel() {
   const action = getWorkflowJumpAction();
   if (!action) return;
+  runWorkflowAction(action);
+}
+
+function updateFloatingAltJump() {
+  const button = $("#floatingAltJumpButton");
+  if (!button) return;
+  const action = getAltWorkflowJumpAction();
+  button.hidden = !document.body.classList.contains("in-app") || !action;
+  button.textContent = action?.label || "另一條線";
+  button.title = action?.title || "";
+}
+
+function getAltWorkflowJumpAction() {
+  const activePanel = $(".module-panel.active");
+  if (!activePanel) return null;
+  const moduleId = activePanel.id;
+  if (moduleId === "arrangement" && isArrangementAtHandOff() && !isLyricLineReady()) {
+    const hasUsableIdea = getSelectedIdeas().length > 0;
+    return {
+      label: hasUsableIdea ? "另一線 · 歌詞" : "另一線 · 靈感",
+      module: hasUsableIdea ? "lyrics" : "inspiration",
+      title: "補文字與歌詞這條線"
+    };
+  }
+  if (moduleId === "lyrics" && state.lyricsDone && !isArrangementLineReady()) {
+    return {
+      label: "另一線 · 哼唱",
+      module: "humming",
+      title: "補旋律與編曲這條線"
+    };
+  }
+  return null;
+}
+
+function isArrangementAtHandOff() {
+  return Boolean(
+    state.arrangementAuditioned
+    || (state.arrangementStep === "drum" && (hasDrumChoice() || hasPlayableArrangement()))
+  );
+}
+
+function isLyricLineReady() {
+  return Boolean(state.lyricsDone || getFinalLyricsForPrompt());
+}
+
+function isArrangementLineReady() {
+  return Boolean(state.arrangementAuditioned || hasChordChoice() || hasDrumChoice() || state.analysis?.notes?.length);
+}
+
+function jumpToAltPanel() {
+  const action = getAltWorkflowJumpAction();
+  if (!action) return;
+  runWorkflowAction(action);
+}
+
+function runWorkflowAction(action) {
   if (action.module) {
     openModule(action.module);
     return;
@@ -951,7 +1022,7 @@ function jumpToNextPanel() {
   if (action.top) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   } else {
-    action.target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    action.target?.scrollIntoView({ behavior: "smooth", block: action.block || "start" });
   }
   if (action.playArrangement) playArrangementCombo({ loop: false });
   if (action.highlightPlay) window.setTimeout(() => flashElement("#playComboButton"), 360);
@@ -2611,6 +2682,7 @@ function buildWorkspaceSnapshot(options = {}) {
     selectedLyricKeywords: [...state.selectedLyricKeywords],
     selectedReferenceWords: [...state.selectedReferenceWords],
     lyricSnippets: [...state.lyricSnippets],
+    lyricDraftUndoStack: [...state.lyricDraftUndoStack],
     deletedKeywords: [...state.deletedKeywords],
     selectedMoods: [...state.selectedMoods],
     lyricMoods: [...state.lyricMoods],
@@ -2703,6 +2775,7 @@ function applyWorkspaceSnapshot(snapshot, { silent = false } = {}) {
   state.selectedLyricKeywords = new Set(saveSnapshot.selectedLyricKeywords || []);
   state.selectedReferenceWords = new Set(saveSnapshot.selectedReferenceWords || []);
   state.lyricSnippets = Array.isArray(saveSnapshot.lyricSnippets) ? saveSnapshot.lyricSnippets : [];
+  state.lyricDraftUndoStack = Array.isArray(saveSnapshot.lyricDraftUndoStack) ? saveSnapshot.lyricDraftUndoStack.slice(0, 8) : [];
   state.deletedKeywords = new Set(saveSnapshot.deletedKeywords || []);
   state.selectedMoods = new Set(saveSnapshot.selectedMoods || []);
   state.lyricMoods = new Set(saveSnapshot.lyricMoods || []);
@@ -2800,6 +2873,7 @@ function refreshWorkspaceUI() {
   renderIdeas();
   renderKeywords();
   renderLyricSnippets();
+  updateDraftUndoButton();
   recommendLyrics();
   updatePrompt();
   updateProgress();
@@ -3506,7 +3580,7 @@ function renderSelectedKeywordDisplays() {
 
 function collectSelectedLyricDraft() {
   const draft = $("#lyricsDraft");
-  const selected = draft.value.slice(draft.selectionStart, draft.selectionEnd).trim();
+  const selected = getSelectedDraftText();
   if (!selected) {
     toast("先在歌詞草稿裡選中想收藏的句子");
     return;
@@ -3518,7 +3592,33 @@ function collectSelectedLyricDraft() {
   updateCompletionButtons();
   updatePrompt();
   queueWorkspaceAutosave();
+  updateLyricSelectionPopover({ hide: true });
   toast("已收藏並放入正式歌詞");
+}
+
+function getSelectedDraftText() {
+  const draft = $("#lyricsDraft");
+  if (!draft) return "";
+  return draft.value.slice(draft.selectionStart, draft.selectionEnd).trim();
+}
+
+function updateLyricSelectionPopover(options = {}) {
+  const popover = $("#lyricSelectionPopover");
+  const draft = $("#lyricsDraft");
+  if (!popover || !draft) return;
+  const selected = getSelectedDraftText();
+  const keepVisible = document.activeElement === draft || document.activeElement === popover;
+  if (options.hide || !selected || !keepVisible) {
+    popover.hidden = true;
+    return;
+  }
+  popover.hidden = false;
+  const rect = draft.getBoundingClientRect();
+  const width = popover.offsetWidth || 96;
+  const left = clamp(rect.right - width - 14, 12, window.innerWidth - width - 12);
+  const top = clamp(rect.top + 48, 74, window.innerHeight - 54);
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
 }
 
 function addLyricSnippet(text) {
@@ -3549,6 +3649,38 @@ function applyDraftToFinalLyrics() {
   updatePrompt();
   queueWorkspaceAutosave();
   toast("已把草稿套用到正式歌詞");
+}
+
+function pushLyricDraftUndo(value) {
+  const draft = String(value || "").trim();
+  if (!draft) return;
+  const last = state.lyricDraftUndoStack[0];
+  if (last === value) return;
+  state.lyricDraftUndoStack.unshift(value);
+  state.lyricDraftUndoStack = state.lyricDraftUndoStack.slice(0, 8);
+  updateDraftUndoButton();
+}
+
+function undoLyricDraftOverwrite() {
+  const previous = state.lyricDraftUndoStack.shift();
+  if (!previous) return;
+  $("#lyricsDraft").value = previous;
+  state.lyricsDone = false;
+  recommendLyrics();
+  renderLyricSnippets();
+  updateCompletionButtons();
+  updatePrompt();
+  updateProgress();
+  updateDraftUndoButton();
+  queueWorkspaceAutosave();
+  toast("已撤回上一版草稿");
+}
+
+function updateDraftUndoButton() {
+  const button = $("#undoDraftButton");
+  if (!button) return;
+  button.disabled = !state.lyricDraftUndoStack.length;
+  button.title = state.lyricDraftUndoStack.length ? "恢復上一版被覆蓋的歌詞草稿" : "還沒有可撤銷的草稿";
 }
 
 function renderLyricSnippets() {
@@ -3705,6 +3837,7 @@ function romanizeHangul(text) {
 }
 
 const STRUCTURE_GUIDE_MARKER = "[段落寫作指引]";
+const DEFAULT_DRAFT_STRUCTURE = "Verse - Pre Chorus - Chorus - Verse - Chorus - Bridge - Chorus - Outro";
 
 function maybeInsertStructureGuide() {
   const draft = $("#lyricsDraft");
@@ -3768,6 +3901,7 @@ function sectionWritingHint(section) {
 function structureDraftLyrics() {
   const draft = $("#lyricsDraft");
   const current = draft.value.trim();
+  pushLyricDraftUndo(draft.value);
   if (!current || current.startsWith(STRUCTURE_GUIDE_MARKER)) {
     draft.value = buildStructureGuide();
   } else {
@@ -3778,6 +3912,7 @@ function structureDraftLyrics() {
   updateCompletionButtons();
   updatePrompt();
   updateProgress();
+  updateDraftUndoButton();
   toast("已按段落骨架整理草稿");
 }
 
@@ -3809,17 +3944,22 @@ function organizeExistingLyrics(text) {
 function draftLyrics() {
   recommendLyrics();
   state.lyricDraftVersion += 1;
+  const draftElement = $("#lyricsDraft");
+  pushLyricDraftUndo(draftElement.value);
   const lang = $("#targetLang").value;
-  const theme = $("#themeInput").value.trim() || "尚未命名的心事";
-  const words = getSelectedLyricWords({ includeReferences: false }).slice(0, 8);
-  const selectedReference = getSelectedReferenceWordList();
-  const images = [...selectedReference, ...state.lyricRecommendations.images, "凌晨的街口", "半亮的窗", "沒說出口的訊息"];
-  const rhymes = [...selectedReference, ...state.lyricRecommendations.rhymes, "光", "海", "來", "在"];
+  const theme = $("#themeInput").value.trim() || inferTheme();
+  const keywords = getSelectedIdeaKeywordWords().slice(0, 10);
+  const selectedReferences = getSelectedReferenceWordList()
+    .map(normalizeLyricWord)
+    .filter(Boolean)
+    .slice(0, 10);
+  const anchors = uniqueReferenceItems([...keywords, ...selectedReferences]).slice(0, 12);
   const emotions = getSelectedEmotionLabels(state.lyricMoods).join(" / ");
   const narrator = $("#narratorInput").value;
+  const style = $("#lyricStyle").value;
   const guide = state.analysis?.notes?.length ? buildSyllableAdvice(state.analysis) : "每句 7-11 字，副歌保留重複 hook。";
-  const sections = parseStructureSections($("#songStructure").value);
-  const context = { theme, words, images, rhymes, emotions, narrator, lang, guide, version: state.lyricDraftVersion };
+  const sections = getDraftStructureSections();
+  const context = { theme, keywords, selectedReferences, anchors, emotions, narrator, style, lang, guide, version: state.lyricDraftVersion };
   const counts = {};
   const draft = sections.map((section) => {
     const label = sectionLabel(section);
@@ -3827,13 +3967,20 @@ function draftLyrics() {
     const suffix = counts[label] > 1 ? ` 重複 ${counts[label]}` : "";
     return `[${label}${suffix}]\n${buildSectionLyricLines(section, context).join("\n")}`;
   }).join("\n\n-----\n\n");
-  $("#lyricsDraft").value = draft;
+  draftElement.value = draft;
   state.lyricsDone = false;
   renderLyricSnippets();
   updateCompletionButtons();
   updatePrompt();
   updateProgress();
+  updateDraftUndoButton();
+  updateLyricSelectionPopover({ hide: true });
+  queueWorkspaceAutosave();
   toast(`已生成第 ${state.lyricDraftVersion} 版草稿，可選中好句收藏`);
+}
+
+function getDraftStructureSections() {
+  return parseStructureSections($("#songStructure").value || DEFAULT_DRAFT_STRUCTURE);
 }
 
 function buildSectionLyricLines(section, context) {
@@ -3852,65 +3999,85 @@ function rotatePick(items, index, fallback = "") {
   return clean[index % clean.length];
 }
 
+function getDraftAnchor(ctx, index, fallback = "") {
+  return rotatePick(ctx.anchors, index, fallback || ctx.theme || "那個畫面");
+}
+
+function getDraftHook(ctx) {
+  return getDraftAnchor(ctx, ctx.version, ctx.theme || "還沒說完的心事");
+}
+
+function getDraftAddressee(ctx) {
+  if (/第二人稱|低語|對你/.test(ctx.narrator || "")) return "你";
+  if (/雙人|對話/.test(ctx.narrator || "")) return "我們";
+  if (/群像/.test(ctx.narrator || "")) return "我們";
+  return "我";
+}
+
 function buildVerseLines(ctx) {
   const offset = ctx.version % 5;
-  const wordA = rotatePick(ctx.words, offset, "回憶");
-  const wordB = rotatePick(ctx.words, offset + 1, "沉默");
-  const imageA = rotatePick(ctx.images, offset, "凌晨的街口");
-  const imageB = rotatePick(ctx.images, offset + 1, "半亮的窗");
+  const wordA = getDraftAnchor(ctx, offset, ctx.theme);
+  const wordB = getDraftAnchor(ctx, offset + 1, "那句話");
+  const subject = getDraftAddressee(ctx);
+  if (/宣言|強節奏/.test(ctx.style || "")) {
+    return [
+      `${subject}把${wordA}唱得更直接`,
+      `不再替${wordB}找藉口`,
+      `每一步都踩回${ctx.theme}`,
+      `讓沉默也有自己的節奏`
+    ];
+  }
   return [
-    `我在${imageA}想起${ctx.theme}`,
-    `${wordA}貼著掌心，像還沒退掉的光`,
-    `路過${imageB}，人群把夜色慢慢推開`,
-    `${wordB}沒有回答，只在胸口輕輕發燙`
+    `${subject}把${wordA}留在第一句`,
+    `走到${ctx.theme}旁邊，還是沒有急著回答`,
+    `${wordB}在沉默裡慢慢靠近`,
+    `我把聲音放低，等呼吸把畫面打開`
   ];
 }
 
 function buildPreChorusLines(ctx) {
   const offset = ctx.version % 4;
-  const rhyme = rotatePick(ctx.rhymes, offset, "來");
-  const word = rotatePick(ctx.words, offset + 2, "等待");
+  const word = getDraftAnchor(ctx, offset + 2, ctx.theme);
   return [
-    `差一點就把${word}說成${rhyme}`,
-    `差一點就承認我還在原地徘徊`
+    `差一點把${word}說出口，差一點又收回`,
+    `讓心跳往前推一拍，推到副歌前面`
   ];
 }
 
 function buildChorusLines(ctx) {
   const offset = ctx.version % 6;
-  const rhymeA = rotatePick(ctx.rhymes, offset, "海");
-  const rhymeB = rotatePick(ctx.rhymes, offset + 1, "來");
-  const wordA = rotatePick(ctx.words, offset + 1, "別離");
-  const wordB = rotatePick(ctx.words, offset + 2, "等待");
+  const hook = getDraftHook(ctx);
+  const wordA = getDraftAnchor(ctx, offset + 1, ctx.theme);
+  const wordB = getDraftAnchor(ctx, offset + 2, "那句話");
+  const address = getDraftAddressee(ctx) === "你" ? "你" : "世界";
   return [
-    `如果你也聽見我把${wordA}唱成${rhymeA}`,
-    `就別讓這一夜只剩風替我們回來`,
-    `我把${wordB}放進副歌，一遍一遍打開`,
-    `重複句：${ctx.theme}，還在心裡亮起來`
+    `我還想把${hook}唱給${address}聽`,
+    `一遍是靠近，一遍是放開`,
+    `如果${wordA}能替我被記住`,
+    `${wordB}又唱回來，讓${ctx.theme}再亮一遍`
   ];
 }
 
 function buildBridgeLines(ctx) {
   const offset = ctx.version % 5;
-  const image = rotatePick(ctx.images, offset + 2, "轉角後的光");
-  const word = rotatePick(ctx.words, offset + 3, "答案");
+  const word = getDraftAnchor(ctx, offset + 3, ctx.theme);
+  const turn = /冷感|克制/.test(ctx.style || "") ? "不用把答案說滿" : "把答案留到最後一次副歌";
   return [
-    `後來我走到${image}背面`,
-    `才懂${word}不是非要誰給`,
-    `把沒完成的話留一半，讓最後一次副歌接回來`
+    `到這裡，${word}換了一個角度`,
+    `${turn}`,
+    `讓前面的話回來，但語氣變得更輕`
   ];
 }
 
 function buildIntroOutroLines(ctx, type) {
-  const image = rotatePick(ctx.images, ctx.version, "夜色");
-  const word = rotatePick(ctx.words, ctx.version, ctx.theme);
-  if (type === "intro") return [`${image}裡，有人輕輕哼著${word}`];
-  return [`讓${word}慢慢退場，讓${image}替我收尾`];
+  const word = getDraftAnchor(ctx, ctx.version, ctx.theme);
+  if (type === "intro") return [`很輕的${word}，從喉嚨裡醒來`];
+  return [`讓${word}慢慢退場，最後只留下${ctx.theme}`];
 }
 
 function buildDropLines(ctx) {
-  const wordA = rotatePick(ctx.words, ctx.version, "心跳");
-  const wordB = rotatePick(ctx.words, ctx.version + 1, "夜色");
+  const wordA = getDraftAnchor(ctx, ctx.version, ctx.theme);
+  const wordB = getDraftAnchor(ctx, ctx.version + 1, "呼吸");
   return [
     `${wordA}，${wordA}`,
     `${wordB}落下來`,
@@ -4941,7 +5108,7 @@ function buildPluginData() {
   return {
     meta: {
       app: "MuUsic",
-      version: "20260602-lyrics-arr1",
+      version: "20260606-art1",
       recordId: `current-${autoSnapshot?.savedAt || saveName}`,
       saveName,
       exportedAt,
@@ -5000,7 +5167,7 @@ function buildPluginDataFromSnapshotRecord(record, source) {
   return {
     meta: {
       app: "MuUsic",
-      version: "20260602-lyrics-arr1",
+      version: "20260606-art1",
       recordId: `${source}-${record.id || snapshot.id || exportedAt}`,
       saveName: record.name || snapshot.name || getDefaultSaveName(fields),
       exportedAt,

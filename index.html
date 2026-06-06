@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MuUsic - AI 音樂創作工作台</title>
-    <link rel="stylesheet" href="styles.css?v=20260602-lyrics-arr1" />
+    <link rel="stylesheet" href="styles.css?v=20260606-art1" />
   </head>
   <body>
     <div class="app-shell">
@@ -24,34 +24,70 @@
 
           <div class="launcher-grid" aria-label="主要系統">
             <button class="system-launcher pos-humming" data-module-target="humming" type="button">
-              <span class="app-icon emoji-icon icon-humming" aria-hidden="true">
-                <span class="emoji-stack"><span>🗣️</span><span>🎵</span></span>
+              <span class="app-icon line-icon icon-humming" aria-hidden="true">
+                <svg viewBox="0 0 64 64">
+                  <path d="M21 18c8-6 21-1 23 9" />
+                  <path d="M20 18c-7 14-3 27 11 32" />
+                  <path d="M31 50c7-1 12-6 13-14" />
+                  <path d="M38 28c7 0 11 3 14 8" />
+                  <path d="M48 14v19" />
+                  <path d="M48 14l8 4" />
+                  <circle cx="44" cy="35" r="4" />
+                </svg>
               </span>
               <strong>哼唱</strong>
             </button>
             <button class="system-launcher pos-inspiration" data-module-target="inspiration" type="button">
-              <span class="app-icon emoji-icon icon-inspiration" aria-hidden="true">
-                <span>💡</span>
+              <span class="app-icon line-icon icon-inspiration" aria-hidden="true">
+                <svg viewBox="0 0 64 64">
+                  <path d="M23 31c-4-4-5-12 0-18 5-7 16-7 22 0 5 6 4 14 0 18-3 3-5 6-5 10H28c0-4-2-7-5-10Z" />
+                  <path d="M28 46h12" />
+                  <path d="M29 52h10" />
+                  <path d="M32 16c-3 2-5 5-5 9" />
+                  <path d="M15 22h-5" />
+                  <path d="M54 22h-5" />
+                  <path d="M19 8l-3-4" />
+                  <path d="M45 8l3-4" />
+                </svg>
               </span>
               <strong>靈感</strong>
             </button>
             <button class="system-launcher pos-arrangement" data-module-target="arrangement" type="button">
-              <span class="app-icon emoji-icon icon-arrangement" aria-hidden="true">
-                <span class="emoji-stack"><span>🥁</span><span>🎸</span></span>
+              <span class="app-icon line-icon icon-arrangement" aria-hidden="true">
+                <svg viewBox="0 0 64 64">
+                  <path d="M12 34c0-5 9-8 20-8s20 3 20 8-9 8-20 8-20-3-20-8Z" />
+                  <path d="M12 34v12c0 5 9 8 20 8s20-3 20-8V34" />
+                  <path d="M20 27 13 14" />
+                  <path d="M44 27 51 14" />
+                  <path d="M38 18l10 10" />
+                  <path d="M44 14l8 8" />
+                </svg>
               </span>
               <strong>編曲</strong>
             </button>
             <button class="system-launcher pos-lyrics" data-module-target="lyrics" type="button">
-              <span class="app-icon emoji-icon icon-lyrics" aria-hidden="true">
-                <span>📝</span>
+              <span class="app-icon line-icon icon-lyrics" aria-hidden="true">
+                <svg viewBox="0 0 64 64">
+                  <path d="M18 10h22l8 8v36H18Z" />
+                  <path d="M40 10v10h8" />
+                  <path d="M25 28h16" />
+                  <path d="M25 36h12" />
+                  <path d="M39 49 53 35" />
+                  <path d="M48 34l6 6" />
+                </svg>
               </span>
               <strong>歌詞</strong>
             </button>
           </div>
 
           <button class="system-launcher pos-prompt" data-module-target="prompt" type="button">
-            <span class="app-icon emoji-icon icon-prompt" aria-hidden="true">
-              <span>🪄</span>
+            <span class="app-icon line-icon icon-prompt" aria-hidden="true">
+              <svg viewBox="0 0 64 64">
+                <path d="M18 48 46 20" />
+                <path d="M40 14l10 10" />
+                <path d="M15 18l4-8 4 8 8 4-8 4-4 8-4-8-8-4Z" />
+                <path d="M45 42l3-6 3 6 6 3-6 3-3 6-3-6-6-3Z" />
+              </svg>
             </span>
             <strong>提示詞</strong>
           </button>
@@ -331,6 +367,9 @@
                     <div class="list-head">
                       <h3>歌詞草稿</h3>
                       <div class="action-row compact-actions">
+                        <button id="undoDraftButton" class="ghost-action" type="button" disabled>
+                          <span aria-hidden="true">↶</span>撤銷覆蓋
+                        </button>
                         <button id="structureLyricsButton" class="ghost-action" type="button">
                           <span aria-hidden="true">↳</span>按骨架整理
                         </button>
@@ -345,9 +384,6 @@
                     <div class="list-head">
                       <h3>正式歌詞</h3>
                       <div class="action-row compact-actions">
-                        <button id="collectLyricLineButton" class="ghost-action" type="button">
-                          <span aria-hidden="true">★</span>收藏選中
-                        </button>
                         <button id="applyDraftToFinalButton" class="ghost-action" type="button">
                           <span aria-hidden="true">↓</span>套用草稿
                         </button>
@@ -477,8 +513,10 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="guide-arrow-layer" id="guideArrowLayer"></div>
+    <button class="selection-popover" id="lyricSelectionPopover" type="button" hidden>收藏選中</button>
     <button class="floating-jump" id="floatingJumpButton" type="button" hidden>下一頁</button>
+    <button class="floating-alt-jump" id="floatingAltJumpButton" type="button" hidden>另一條線</button>
     <button class="floating-return" id="returnPromptButton" type="button" hidden>返回提示詞</button>
-    <script src="app.js?v=20260602-lyrics-arr1"></script>
+    <script src="app.js?v=20260606-art1"></script>
   </body>
 </html>
