@@ -5108,7 +5108,7 @@ function buildPluginData() {
   return {
     meta: {
       app: "MuUsic",
-      version: "20260606-art1",
+      version: "20260602-lyrics-arr1",
       recordId: `current-${autoSnapshot?.savedAt || saveName}`,
       saveName,
       exportedAt,
@@ -5167,7 +5167,7 @@ function buildPluginDataFromSnapshotRecord(record, source) {
   return {
     meta: {
       app: "MuUsic",
-      version: "20260606-art1",
+      version: "20260602-lyrics-arr1",
       recordId: `${source}-${record.id || snapshot.id || exportedAt}`,
       saveName: record.name || snapshot.name || getDefaultSaveName(fields),
       exportedAt,
