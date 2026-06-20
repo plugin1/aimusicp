@@ -1,6 +1,6 @@
 # MuUsic for Suno
 
-這是一個 Chrome / Edge 可載入的 Manifest V3 插件。目前版本：0.1.12。
+這是一個 Chrome / Edge 可載入的 Manifest V3 插件。目前版本：0.1.13。
 
 ## 安裝
 
