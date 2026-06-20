@@ -6,7 +6,7 @@ const MUUSIC_DEFAULT = {
   prompt: "提示詞：尚未生成"
 };
 
-const MUUSIC_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260620-visual-tune1";
+const MUUSIC_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260621-tooltip1";
 const MUUSIC_EMPTY_META = {
   saveName: "尚未讀取存檔",
   exportedAt: "",

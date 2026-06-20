@@ -3050,6 +3050,49 @@ canvas {
   transform: translate(-50%, 0);
 }
 
+body.floating-tooltips-ready .has-tip::after,
+body.floating-tooltips-ready .tip::after,
+body.floating-tooltips-ready .mood-chip::after {
+  display: none !important;
+}
+
+.floating-tooltip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  width: max-content;
+  max-width: min(340px, calc(100vw - 24px));
+  max-height: min(280px, calc(100vh - 24px));
+  overflow: hidden;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(22, 22, 22, 0.94);
+  color: #ffffff;
+  box-shadow: 0 16px 36px rgba(17, 17, 17, 0.22);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 1.48;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.floating-tooltip[hidden] {
+  display: none;
+}
+
+.floating-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .toast {
   position: fixed;
   left: 22px;

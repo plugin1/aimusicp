@@ -525,6 +525,7 @@ let recordingAnimationId;
 let autosaveTimer;
 let restoringWorkspace = false;
 let audioDbPromise;
+let activeTooltipTarget = null;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -551,6 +552,7 @@ function persistGuidePreferences() {
 function init() {
   loadGuidePreferences();
   bindEvents();
+  setupFloatingTooltips();
   const restoredWorkspace = restoreWorkspace();
   if (!restoredWorkspace) restoreIdeas();
   renderChoiceGroups();
@@ -697,6 +699,107 @@ function handleGuideArrowAction(event) {
   if (!button) return;
   state.dismissedGuideArrows.add(button.dataset.guideDismiss);
   renderGuideTargets();
+}
+
+function setupFloatingTooltips() {
+  if (document.querySelector(".floating-tooltip")) return;
+  const tooltip = document.createElement("div");
+  tooltip.className = "floating-tooltip";
+  tooltip.setAttribute("role", "tooltip");
+  tooltip.hidden = true;
+  document.body.appendChild(tooltip);
+  document.body.classList.add("floating-tooltips-ready");
+
+  document.addEventListener("pointerover", (event) => {
+    const target = findTooltipTarget(event.target);
+    if (target) showFloatingTooltip(target);
+  }, true);
+
+  document.addEventListener("focusin", (event) => {
+    const target = findTooltipTarget(event.target);
+    if (target) showFloatingTooltip(target);
+  }, true);
+
+  document.addEventListener("pointerout", (event) => {
+    if (!activeTooltipTarget) return;
+    const next = event.relatedTarget;
+    if (next && activeTooltipTarget.contains(next)) return;
+    hideFloatingTooltip();
+  }, true);
+
+  document.addEventListener("focusout", (event) => {
+    if (!activeTooltipTarget) return;
+    const next = event.relatedTarget;
+    if (next && activeTooltipTarget.contains(next)) return;
+    hideFloatingTooltip();
+  }, true);
+
+  window.addEventListener("scroll", () => {
+    if (activeTooltipTarget) placeFloatingTooltip(activeTooltipTarget);
+  }, true);
+  window.addEventListener("resize", () => {
+    if (activeTooltipTarget) placeFloatingTooltip(activeTooltipTarget);
+  });
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hideFloatingTooltip();
+  });
+}
+
+function findTooltipTarget(target) {
+  if (!(target instanceof Element)) return null;
+  const tooltipTarget = target.closest("[data-tip], [data-tooltip], [data-native-title], [title]");
+  if (!tooltipTarget || tooltipTarget.closest(".floating-tooltip")) return null;
+  return tooltipTarget;
+}
+
+function getTooltipText(target) {
+  if (!target) return "";
+  if (target.hasAttribute("title")) {
+    target.dataset.nativeTitle = target.getAttribute("title") || "";
+    target.removeAttribute("title");
+  }
+  return target.dataset.tip || target.dataset.tooltip || target.dataset.nativeTitle || "";
+}
+
+function showFloatingTooltip(target) {
+  const text = getTooltipText(target).trim();
+  const tooltip = $(".floating-tooltip");
+  if (!tooltip || !text) return;
+  activeTooltipTarget = target;
+  tooltip.textContent = text;
+  tooltip.hidden = false;
+  tooltip.classList.add("visible");
+  placeFloatingTooltip(target);
+}
+
+function placeFloatingTooltip(target) {
+  const tooltip = $(".floating-tooltip");
+  if (!tooltip || tooltip.hidden || !target?.isConnected) {
+    hideFloatingTooltip();
+    return;
+  }
+  const rect = target.getBoundingClientRect();
+  const margin = 12;
+  const gap = 8;
+  const width = tooltip.offsetWidth;
+  const height = tooltip.offsetHeight;
+  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+  const left = clamp(rect.left + rect.width / 2 - width / 2, margin, maxLeft);
+  const hasRoomAbove = rect.top >= height + gap + margin;
+  const top = hasRoomAbove
+    ? rect.top - height - gap
+    : clamp(rect.bottom + gap, margin, window.innerHeight - height - margin);
+  tooltip.style.left = `${Math.round(left)}px`;
+  tooltip.style.top = `${Math.round(top)}px`;
+  tooltip.dataset.placement = hasRoomAbove ? "top" : "bottom";
+}
+
+function hideFloatingTooltip() {
+  const tooltip = $(".floating-tooltip");
+  activeTooltipTarget = null;
+  if (!tooltip) return;
+  tooltip.classList.remove("visible");
+  tooltip.hidden = true;
 }
 
 function getGuideScope() {
