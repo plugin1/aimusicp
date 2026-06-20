@@ -1,6 +1,6 @@
 # MuUsic for Suno
 
-這是一個 Chrome / Edge 可載入的 Manifest V3 插件。目前版本：0.1.11。
+這是一個 Chrome / Edge 可載入的 Manifest V3 插件。目前版本：0.1.12。
 
 ## 安裝
 
@@ -14,10 +14,12 @@
 
 如果已經載入過舊版，改完文件後需要到擴充功能頁面點一次「重新載入」，再刷新 Suno 分頁。只刷新 Suno 不一定會換到新的 content script。
 
+Safari 不能直接載入這個 Chrome 未封裝資料夾。若要做 Safari 版本，需要轉成 Safari Web Extension：本機開發可用 Xcode 的 converter；正式分享或測試可走 App Store Connect/TestFlight。
+
 ## 用法
 
 - 從 MuUsic 網頁版提示詞系統按 ✓ 前往 Suno，插件會自動接續當前存檔。
 - 一般打開插件時，先選擇已匯入或上次接收的 MuUsic 存檔。
 - 也可以在網頁版提示詞系統複製插件資料，到 Suno 面板貼上匯入；一次可匯入多個存檔。
-- 在 Suno 使用期間可以隨時查看、編輯、複製或填入當前輸入框。
+- 在 Suno 使用期間可以隨時查看、編輯、複製或填入上次聚焦的 Suno 輸入框。
 - 面板裡的「打開網頁版」會回到最新版 MuUsic。

@@ -6,7 +6,7 @@ const MUUSIC_DEFAULT = {
   prompt: "提示詞：尚未生成"
 };
 
-const MUUSIC_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260602-lyrics-arr1";
+const MUUSIC_WEB_URL = "https://plugin1.github.io/aimusicp/?v=20260620-visual-tune1";
 const MUUSIC_EMPTY_META = {
   saveName: "尚未讀取存檔",
   exportedAt: "",
@@ -36,6 +36,7 @@ let muusicRecords = [];
 let muusicCurrentRecordId = "";
 let muusicActive = "humming";
 let muusicOpenOnRender = false;
+let muusicLastEditable = null;
 
 if (!window.__muusicSunoLoaded) {
   window.__muusicSunoLoaded = true;
@@ -94,7 +95,7 @@ function renderMuUsic() {
       </header>
       <div class="muusic-picker">
         <div class="muusic-picker-head">
-          <label>選擇 MuUsic 存檔</label>
+          <label>選擇存檔</label>
           <button class="muusic-link" type="button" data-open-web>回網頁版</button>
         </div>
         <div class="muusic-record-list" data-record-list></div>
@@ -110,7 +111,7 @@ function renderMuUsic() {
         <div class="muusic-actions">
           <button class="muusic-primary" type="button" data-copy-current>複製本段</button>
           <button class="muusic-secondary" type="button" data-copy-all>複製全部</button>
-          <button class="muusic-secondary" type="button" data-fill-focused>填入當前輸入框</button>
+          <button class="muusic-secondary" type="button" data-fill-focused>填入 Suno 輸入框</button>
         </div>
         <hr />
         <div class="muusic-field">
@@ -127,6 +128,7 @@ function renderMuUsic() {
     </section>
   `;
   document.documentElement.appendChild(root);
+  rememberEditableTargets(root);
   bindMuUsic(root);
   updateMuUsicUI(root);
   if (muusicOpenOnRender) root.classList.add("open");
@@ -233,15 +235,45 @@ async function copyText(text, root, message) {
 }
 
 function fillFocused(root) {
-  const active = document.activeElement;
+  const active = getEditableTarget(document.activeElement, root) || getEditableTarget(muusicLastEditable, root);
   const text = muusicState[muusicActive] || "";
-  if (!active || !("value" in active)) {
+  if (!active) {
     copyText(text, root, "未找到輸入框，已改為複製");
     return;
   }
-  active.value = `${active.value || ""}${active.value ? "\n" : ""}${text}`;
-  active.dispatchEvent(new Event("input", { bubbles: true }));
+  if ("value" in active) {
+    active.focus();
+    const prefix = active.value ? "\n" : "";
+    const start = typeof active.selectionStart === "number" ? active.selectionStart : active.value.length;
+    const end = typeof active.selectionEnd === "number" ? active.selectionEnd : active.value.length;
+    if (typeof active.setRangeText === "function") {
+      active.setRangeText(`${prefix}${text}`, start, end, "end");
+    } else {
+      active.value = `${active.value || ""}${prefix}${text}`;
+    }
+    active.dispatchEvent(new Event("input", { bubbles: true }));
+  } else {
+    active.focus();
+    const inserted = document.execCommand?.("insertText", false, `${active.textContent ? "\n" : ""}${text}`);
+    if (!inserted) active.textContent = `${active.textContent || ""}${active.textContent ? "\n" : ""}${text}`;
+    active.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+  }
   showToast(root, "已填入目前輸入框");
+}
+
+function rememberEditableTargets(root) {
+  document.addEventListener("focusin", (event) => {
+    const target = getEditableTarget(event.target, root);
+    if (target) muusicLastEditable = target;
+  }, true);
+}
+
+function getEditableTarget(target, root) {
+  if (!target || root?.contains(target)) return null;
+  if (target instanceof HTMLTextAreaElement) return target;
+  if (target instanceof HTMLInputElement && /^(text|search|url|email|tel|password)?$/i.test(target.type || "text")) return target;
+  if (target.isContentEditable) return target;
+  return null;
 }
 
 async function importData(root) {
